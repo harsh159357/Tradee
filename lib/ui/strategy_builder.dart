@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../core/constants.dart';
 import '../features/market_state.dart';
-import '../engines/pricing_engine.dart';
+import 'widgets/empty_state.dart';
 
 class StrategyBuilderScreen extends HookConsumerWidget {
   const StrategyBuilderScreen({super.key});
@@ -31,8 +32,8 @@ class StrategyBuilderScreen extends HookConsumerWidget {
     double maxProfit = double.negativeInfinity;
     double maxLoss = double.infinity;
     if (legs.value.isNotEmpty && spot > 0) {
-      final startPrice = spot * 0.80;
-      final endPrice = spot * 1.20;
+      final startPrice = spot * AppConstants.chartRangeMin;
+      final endPrice = spot * AppConstants.chartRangeMax;
       for (int i = 0; i <= 200; i++) {
         final s = startPrice + (endPrice - startPrice) * i / 200;
         double pnl = 0;
@@ -63,14 +64,14 @@ class StrategyBuilderScreen extends HookConsumerWidget {
       ),
       body: Column(
         children: [
-          _buildSummaryHeader(totalPremium, totalDelta, totalGamma, totalVega, totalTheta, maxProfit, maxLoss),
+          _buildSummaryHeader(context, totalPremium, totalDelta, totalGamma, totalVega, totalTheta, maxProfit, maxLoss),
           if (legs.value.isNotEmpty)
             Container(
               height: 220,
               width: double.infinity,
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E2329),
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: ClipRRect(
@@ -79,6 +80,7 @@ class StrategyBuilderScreen extends HookConsumerWidget {
                   painter: PayoffChartPainter(
                     legs: legs.value,
                     currentSpot: spot,
+                    lineColor: Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ),
@@ -119,19 +121,20 @@ class StrategyBuilderScreen extends HookConsumerWidget {
   }
 
   Widget _buildSummaryHeader(
+    BuildContext context,
     double premium, double d, double g, double v, double t,
     double maxProfit, double maxLoss,
   ) {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: const Color(0xFF1E2329),
+      color: Theme.of(context).colorScheme.surface,
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Total Cost/Credit', style: TextStyle(color: Colors.white54)),
-              Text('\$${premium.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFF0B90B))),
+              Text('\$${premium.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).colorScheme.primary)),
             ],
           ),
           const SizedBox(height: 8),
@@ -187,15 +190,9 @@ class StrategyBuilderScreen extends HookConsumerWidget {
   }
 
   Widget _buildEmptyState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.architecture, size: 64, color: Colors.white24),
-          SizedBox(height: 16),
-          Text('Build Multi-leg Strategies', style: TextStyle(color: Colors.white54)),
-        ],
-      ),
+    return const EmptyState(
+      icon: Icons.architecture,
+      message: 'Build Multi-leg Strategies',
     );
   }
 
@@ -203,7 +200,7 @@ class StrategyBuilderScreen extends HookConsumerWidget {
     final chain = ref.read(optionsChainProvider).value ?? [];
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E2329),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) => ListView.builder(
         itemCount: chain.length,
         itemBuilder: (context, index) {
@@ -225,15 +222,16 @@ class StrategyBuilderScreen extends HookConsumerWidget {
 class PayoffChartPainter extends CustomPainter {
   final List<OptionContract> legs;
   final double currentSpot;
+  final Color lineColor;
 
-  PayoffChartPainter({required this.legs, required this.currentSpot});
+  PayoffChartPainter({required this.legs, required this.currentSpot, required this.lineColor});
 
   @override
   void paint(Canvas canvas, Size size) {
     if (currentSpot == 0) return;
 
     final paintLine = Paint()
-      ..color = const Color(0xFFF0B90B)
+      ..color = lineColor
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
@@ -245,15 +243,15 @@ class PayoffChartPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     // Range: +/- 10% of current spot
-    final startPrice = currentSpot * 0.90;
-    final endPrice = currentSpot * 1.10;
+    final startPrice = currentSpot * AppConstants.chartPayoffRangeMin;
+    final endPrice = currentSpot * AppConstants.chartPayoffRangeMax;
     final priceRange = endPrice - startPrice;
 
     double maxPnL = -double.infinity;
     double minPnL = double.infinity;
 
     final points = <Offset>[];
-    final steps = 50;
+    const steps = 50;
     
     for (int i = 0; i <= steps; i++) {
       final s = startPrice + (priceRange * i / steps);
@@ -285,14 +283,17 @@ class PayoffChartPainter extends CustomPainter {
 
     // Draw grid
     canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), paintAxis);
-    canvas.drawLine(Offset(getX(currentSpot), 0), Offset(getX(currentSpot), size.height), paintAxis..color = Colors.blue.withOpacity(0.3));
+    canvas.drawLine(Offset(getX(currentSpot), 0), Offset(getX(currentSpot), size.height), paintAxis..color = Colors.blue.withAlpha(77));
 
     final path = Path();
     for (int i = 0; i < points.length; i++) {
       final x = getX(points[i].dx);
       final y = getY(points[i].dy);
-      if (i == 0) path.moveTo(x, y);
-      else path.lineTo(x, y);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
     }
 
     // Draw fill area below/above 0
@@ -304,7 +305,7 @@ class PayoffChartPainter extends CustomPainter {
     paintFill.shader = LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [Colors.green.withOpacity(0.2), Colors.red.withOpacity(0.2)],
+      colors: [Colors.green.withAlpha(51), Colors.red.withAlpha(51)],
     ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     
     canvas.drawPath(fillPath, paintFill);

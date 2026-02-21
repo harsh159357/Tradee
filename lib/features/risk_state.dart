@@ -1,7 +1,6 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../core/constants.dart';
 import '../domain/margin_status.dart';
-import '../domain/position.dart';
 import 'market_state.dart';
 import 'portfolio_state.dart';
 import '../engines/pricing_engine.dart';

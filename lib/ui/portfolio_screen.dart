@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../features/portfolio_state.dart';
 import '../features/risk_state.dart';
+import 'widgets/empty_state.dart';
+import 'widgets/stat_column.dart';
 
 class PortfolioScreen extends HookConsumerWidget {
   const PortfolioScreen({super.key});
@@ -20,17 +22,17 @@ class PortfolioScreen extends HookConsumerWidget {
         appBar: AppBar(
           title: const Text('Portfolio'),
           backgroundColor: Colors.transparent,
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            tabs: const [
               Tab(text: 'Positions'),
               Tab(text: 'History'),
             ],
-            indicatorColor: Color(0xFFF0B90B),
+            indicatorColor: Theme.of(context).colorScheme.primary,
           ),
         ),
         body: Column(
           children: [
-            _buildStatsHeader(marginStatus, realizedPnL),
+            _buildStatsHeader(context, marginStatus, realizedPnL),
             const Divider(color: Colors.white10, height: 1),
             Expanded(
               child: TabBarView(
@@ -46,7 +48,7 @@ class PortfolioScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildStatsHeader(MarginStatus status, double realizedPnL) {
+  Widget _buildStatsHeader(BuildContext context, MarginStatus status, double realizedPnL) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       child: Column(
@@ -55,7 +57,7 @@ class PortfolioScreen extends HookConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _statColumn('Equity', '\$${status.equity.toStringAsFixed(2)}',
-                  const Color(0xFFF0B90B)),
+                  Theme.of(context).colorScheme.primary),
               _statColumn('Used Margin', '\$${status.maintenanceMargin.toStringAsFixed(2)}',
                   Colors.white),
               _statColumn(
@@ -87,16 +89,7 @@ class PortfolioScreen extends HookConsumerWidget {
   }
 
   Widget _statColumn(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(label,
-            style: const TextStyle(color: Colors.white54, fontSize: 10)),
-        const SizedBox(height: 4),
-        Text(value,
-            style: TextStyle(
-                fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-      ],
-    );
+    return StatColumn(label: label, value: value, valueColor: color);
   }
 
   Widget _buildPositionsTab(
@@ -106,17 +99,9 @@ class PortfolioScreen extends HookConsumerWidget {
     Map<String, PositionMark> marks,
   ) {
     if (positions.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.account_balance_wallet_outlined,
-                size: 64, color: Colors.white24),
-            SizedBox(height: 16),
-            Text('No active positions',
-                style: TextStyle(color: Colors.white54)),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.account_balance_wallet_outlined,
+        message: 'No active positions',
       );
     }
 
@@ -216,23 +201,17 @@ class PortfolioScreen extends HookConsumerWidget {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: () {
-                final exitPrice = pos.isFilled ? (mark?.premium ?? 0.0) : 0.0;
-                ref.read(portfolioProvider.notifier).closePosition(
-                  pos.id,
-                  exitPrice: exitPrice,
+                ref.read(portfolioProvider.notifier).closePositionWithSettlement(
+                  id: pos.id,
+                  exitPrice: pos.isFilled ? (mark?.premium ?? 0.0) : 0.0,
+                  isFilled: pos.isFilled,
+                  pnl: pnl,
+                  balanceNotifier: ref.read(balanceProvider.notifier),
+                  currentBalance: ref.read(balanceProvider),
+                  entryPrice: pos.entryPrice,
+                  quantity: pos.quantity,
+                  historyNotifier: ref.read(tradeHistoryProvider.notifier),
                 );
-                final currentBalance = ref.read(balanceProvider);
-                if (pos.isFilled) {
-                  ref
-                      .read(balanceProvider.notifier)
-                      .updateBalance(currentBalance + pnl);
-                } else {
-                  final refund = pos.entryPrice * pos.quantity.abs();
-                  ref
-                      .read(balanceProvider.notifier)
-                      .updateBalance(currentBalance + refund);
-                }
-                ref.read(tradeHistoryProvider.notifier).refresh();
               },
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 36),
@@ -248,16 +227,9 @@ class PortfolioScreen extends HookConsumerWidget {
 
   Widget _buildHistoryTab(List<TradeRecord> history) {
     if (history.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history, size: 64, color: Colors.white24),
-            SizedBox(height: 16),
-            Text('No trade history yet',
-                style: TextStyle(color: Colors.white54)),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.history,
+        message: 'No trade history yet',
       );
     }
 

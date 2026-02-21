@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../core/constants.dart';
+import '../data/market_data_service.dart' show WsConnectionState;
 import '../features/market_state.dart';
-import 'trading_screen.dart';
 
 class AssetSelectionScreen extends HookConsumerWidget {
   const AssetSelectionScreen({super.key});
@@ -20,9 +22,10 @@ class AssetSelectionScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final prices = ref.watch(pricesProvider).value ?? {};
+    final pricesAsync = ref.watch(pricesProvider);
+    final prices = pricesAsync.value ?? {};
     final change24h = ref.watch(change24hProvider).value ?? {};
-    final assets = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
+    const assets = AppConstants.supportedAssets;
     final te = ref.watch(timeProvider);
     final countdown = te.getCountdown();
 
@@ -48,7 +51,11 @@ class AssetSelectionScreen extends HookConsumerWidget {
           ),
         ],
       ),
-      body: ListView.builder(
+      body: Column(
+        children: [
+          _buildConnectionBanner(ref),
+          Expanded(
+            child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: assets.length,
         itemBuilder: (context, index) {
@@ -63,10 +70,7 @@ class AssetSelectionScreen extends HookConsumerWidget {
               borderRadius: BorderRadius.circular(12),
               onTap: () {
                 ref.read(selectedAssetProvider.notifier).state = symbol;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (context) => const TradingScreen()),
-                );
+                context.push('/trade');
               },
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -76,12 +80,12 @@ class AssetSelectionScreen extends HookConsumerWidget {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0B90B).withAlpha(25),
+                        color: Theme.of(context).colorScheme.primary.withAlpha(25),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         _assetIcons[symbol] ?? Icons.monetization_on,
-                        color: const Color(0xFFF0B90B),
+                        color: Theme.of(context).colorScheme.primary,
                         size: 28,
                       ),
                     ),
@@ -107,8 +111,8 @@ class AssetSelectionScreen extends HookConsumerWidget {
                           price > 0
                               ? '\$${_formatPrice(price)}'
                               : 'Loading...',
-                          style: const TextStyle(
-                            color: Color(0xFFF0B90B),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
@@ -133,6 +137,41 @@ class AssetSelectionScreen extends HookConsumerWidget {
           );
         },
       ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectionBanner(WidgetRef ref) {
+    final connState = ref.watch(connectionStateProvider);
+    return connState.when(
+      data: (state) {
+        if (state == WsConnectionState.connected) return const SizedBox.shrink();
+        final isReconnecting = state == WsConnectionState.reconnecting;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+          color: isReconnecting ? Colors.orange.shade800 : Colors.red.shade800,
+          child: Row(
+            children: [
+              if (isReconnecting)
+                const SizedBox(
+                  width: 14, height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                ),
+              if (!isReconnecting) const Icon(Icons.cloud_off, size: 14, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(
+                isReconnecting ? 'Reconnecting...' : 'Disconnected',
+                style: const TextStyle(fontSize: 12, color: Colors.white),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 

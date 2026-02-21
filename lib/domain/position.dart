@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 class Position {
   final String id;
   final String symbol;
@@ -8,8 +10,6 @@ class Position {
   final String orderType;
   final bool isFilled;
   final DateTime timestamp;
-  /// Expiry date for this position. Defaults to today's daily expiry.
-  /// Stored for future multi-expiry support.
   final DateTime? expiry;
 
   Position({
@@ -38,20 +38,30 @@ class Position {
     if (expiry != null) 'expiry': expiry!.toIso8601String(),
   };
 
-  factory Position.fromMap(Map<dynamic, dynamic> map) => Position(
-    id: map['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-    symbol: map['symbol'],
-    strike: (map['strike'] as num).toDouble(),
-    type: map['type'],
-    quantity: (map['quantity'] as num).toDouble(),
-    entryPrice: (map['entryPrice'] as num).toDouble(),
-    orderType: map['orderType'] ?? 'market',
-    isFilled: map['isFilled'] ?? true,
-    timestamp: map['timestamp'] != null
-        ? DateTime.parse(map['timestamp'])
-        : DateTime.now(),
-    expiry: map['expiry'] != null ? DateTime.parse(map['expiry']) : null,
-  );
+  factory Position.fromMap(Map<dynamic, dynamic> map) {
+    final id = map['id']?.toString() ??
+        DateTime.now().millisecondsSinceEpoch.toString();
+    final symbol = map['symbol']?.toString() ?? '';
+    final type = map['type']?.toString() ?? 'call';
+    final orderType = map['orderType']?.toString() ?? 'market';
+
+    if (symbol.isEmpty) {
+      throw FormatException('Position $id has no symbol');
+    }
+
+    return Position(
+      id: id,
+      symbol: symbol,
+      strike: _parseDouble(map['strike'], 'strike'),
+      type: type,
+      quantity: _parseDouble(map['quantity'], 'quantity'),
+      entryPrice: _parseDouble(map['entryPrice'], 'entryPrice'),
+      orderType: orderType,
+      isFilled: map['isFilled'] as bool? ?? true,
+      timestamp: _parseDateTime(map['timestamp']) ?? DateTime.now(),
+      expiry: _parseDateTime(map['expiry']),
+    );
+  }
 
   Position copyWith({bool? isFilled, double? entryPrice}) => Position(
     id: id,
@@ -65,6 +75,28 @@ class Position {
     timestamp: timestamp,
     expiry: expiry,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Position &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          symbol == other.symbol &&
+          strike == other.strike &&
+          type == other.type &&
+          quantity == other.quantity &&
+          entryPrice == other.entryPrice &&
+          orderType == other.orderType &&
+          isFilled == other.isFilled;
+
+  @override
+  int get hashCode => Object.hash(
+      id, symbol, strike, type, quantity, entryPrice, orderType, isFilled);
+
+  @override
+  String toString() =>
+      'Position($symbol $strike $type qty=$quantity filled=$isFilled)';
 }
 
 class TradeRecord {
@@ -108,17 +140,47 @@ class TradeRecord {
     if (expiry != null) 'expiry': expiry!.toIso8601String(),
   };
 
-  factory TradeRecord.fromMap(Map<dynamic, dynamic> map) => TradeRecord(
-    id: map['id'],
-    symbol: map['symbol'],
-    strike: (map['strike'] as num).toDouble(),
-    type: map['type'],
-    quantity: (map['quantity'] as num).toDouble(),
-    entryPrice: (map['entryPrice'] as num).toDouble(),
-    exitPrice: (map['exitPrice'] as num).toDouble(),
-    realizedPnL: (map['realizedPnL'] as num).toDouble(),
-    openedAt: DateTime.parse(map['openedAt']),
-    closedAt: DateTime.parse(map['closedAt']),
-    expiry: map['expiry'] != null ? DateTime.parse(map['expiry']) : null,
-  );
+  factory TradeRecord.fromMap(Map<dynamic, dynamic> map) {
+    return TradeRecord(
+      id: map['id']?.toString() ?? '',
+      symbol: map['symbol']?.toString() ?? '',
+      strike: _parseDouble(map['strike'], 'strike'),
+      type: map['type']?.toString() ?? 'call',
+      quantity: _parseDouble(map['quantity'], 'quantity'),
+      entryPrice: _parseDouble(map['entryPrice'], 'entryPrice'),
+      exitPrice: _parseDouble(map['exitPrice'], 'exitPrice'),
+      realizedPnL: _parseDouble(map['realizedPnL'], 'realizedPnL'),
+      openedAt: _parseDateTime(map['openedAt']) ?? DateTime.now(),
+      closedAt: _parseDateTime(map['closedAt']) ?? DateTime.now(),
+      expiry: _parseDateTime(map['expiry']),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TradeRecord && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
+
+double _parseDouble(dynamic value, String field) {
+  if (value == null) return 0.0;
+  if (value is num) return value.toDouble();
+  if (value is String) {
+    return double.tryParse(value) ?? 0.0;
+  }
+  developer.log('Unexpected type for $field: ${value.runtimeType}',
+      name: 'Position');
+  return 0.0;
+}
+
+DateTime? _parseDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is String) {
+    return DateTime.tryParse(value);
+  }
+  return null;
 }

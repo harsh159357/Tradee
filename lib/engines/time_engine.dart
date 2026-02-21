@@ -31,26 +31,26 @@ class TimeEngine {
   String getCountdown() {
     final now = DateTime.now().toUtc();
     final diff = expiry.difference(now);
-    if (diff.isNegative) return "00:00:00";
+    if (diff.isNegative) return '00:00:00';
 
     final h = diff.inHours.toString().padLeft(2, '0');
     final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
     final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
 
-    return "$h:$m:$s";
+    return '$h:$m:$s';
   }
 
   /// Countdown in IST display format (HH:mm:ss IST)
   String getCountdownIST() {
     final nowUtc = DateTime.now().toUtc();
     final diff = expiry.difference(nowUtc);
-    if (diff.isNegative) return "00:00:00";
+    if (diff.isNegative) return '00:00:00';
 
     final h = diff.inHours.toString().padLeft(2, '0');
     final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
     final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
 
-    return "$h:$m:$s";
+    return '$h:$m:$s';
   }
 
   /// Returns the expiry time formatted in IST (UTC+5:30)

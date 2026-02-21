@@ -48,7 +48,7 @@ class SettingsScreen extends HookConsumerWidget {
                 style: TextStyle(color: Colors.white38, fontSize: 11)),
             value: 'rolling',
             groupValue: volMode,
-            activeColor: const Color(0xFFF0B90B),
+            activeColor: Theme.of(context).colorScheme.primary,
             onChanged: (v) => _setVolMode(ref, v!),
           ),
           RadioListTile<String>(
@@ -58,7 +58,7 @@ class SettingsScreen extends HookConsumerWidget {
                 style: TextStyle(color: Colors.white38, fontSize: 11)),
             value: 'fixed',
             groupValue: volMode,
-            activeColor: const Color(0xFFF0B90B),
+            activeColor: Theme.of(context).colorScheme.primary,
             onChanged: (v) => _setVolMode(ref, v!),
           ),
           const Divider(color: Colors.white10),

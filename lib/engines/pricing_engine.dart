@@ -1,6 +1,7 @@
 import 'dart:math' as math;
+import '../domain/enums.dart';
 
-enum OptionType { call, put }
+export '../domain/enums.dart';
 
 class BlackScholesResult {
   final double premium;
@@ -9,13 +10,23 @@ class BlackScholesResult {
   final double vega;
   final double theta;
 
-  BlackScholesResult({
+  const BlackScholesResult({
     required this.premium,
     required this.delta,
     required this.gamma,
     required this.vega,
     required this.theta,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BlackScholesResult &&
+          premium == other.premium &&
+          delta == other.delta;
+
+  @override
+  int get hashCode => Object.hash(premium, delta, gamma, vega, theta);
 }
 
 class BlackScholesEngine {

@@ -1,0 +1,107 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Tradee",
+
+  "marketsTitle": "Markets",
+  "portfolioTitle": "Portfolio",
+  "strategyBuilderTitle": "Strategy Builder",
+  "riskTitle": "Risk Management",
+  "settingsTitle": "Settings",
+
+  "tabPositions": "Positions",
+  "tabHistory": "History",
+
+  "loading": "Loading...",
+  "reconnecting": "Reconnecting...",
+  "disconnected": "Disconnected",
+
+  "noPositions": "No active positions",
+  "noHistory": "No trade history yet",
+  "buildStrategies": "Build Multi-leg Strategies",
+
+  "buy": "BUY",
+  "sell": "SELL",
+  "buyLong": "BUY / LONG",
+  "sellShort": "SELL / SHORT",
+  "closePosition": "CLOSE POSITION",
+  "cancelOrder": "CANCEL ORDER",
+  "confirm": "CONFIRM",
+  "cancel": "CANCEL",
+
+  "marketOrder": "Market",
+  "limitOrder": "Limit",
+  "limitPrice": "Limit Price",
+  "quantity": "Quantity",
+  "contracts": "Contracts",
+
+  "bid": "Bid",
+  "ask": "Ask",
+  "spread": "Spread",
+  "iv": "IV",
+  "estMargin": "Est. Margin",
+
+  "equity": "Equity",
+  "usedMargin": "Used Margin",
+  "available": "Available",
+  "unrealized": "Unrealized",
+  "realized": "Realized",
+
+  "netDelta": "Net Delta (Δ)",
+  "netGamma": "Net Gamma (Γ)",
+  "netVega": "Net Vega (ν)",
+  "netTheta": "Net Theta (Θ)",
+  "priceSensitivity": "Price sensitivity per $1 move",
+  "deltaChangeRate": "Delta change rate",
+  "volSensitivity": "Sensitivity to 1% vol change",
+  "timeDecay": "Time decay per day",
+
+  "stressTest": "Stress Test",
+  "spotMove": "Spot Move: {shift}%",
+  "@spotMove": { "placeholders": { "shift": { "type": "String" } } },
+  "pnlLabel": "P&L: {pnl}",
+  "@pnlLabel": { "placeholders": { "pnl": { "type": "String" } } },
+  "reset": "Reset",
+  "marginUtilization": "Margin Utilization",
+
+  "liquidationWarning": "LIQUIDATION TRIGGERED: Positions force-closed at market",
+  "liquidationSnackbar": "LIQUIDATION: All positions force-closed at market",
+  "expirySnackbar": "EXPIRY: All positions settled at intrinsic value",
+
+  "resetAccount": "Reset Demo Account",
+  "resetAccountDesc": "Wipe all positions and reset balance to $100,000",
+  "resetConfirmTitle": "Reset Account?",
+  "resetConfirmBody": "This will delete all positions, history, and reset balance.",
+  "resetSuccess": "Account Reset Successful",
+
+  "volatility": "VOLATILITY",
+  "rollingVolLabel": "Rolling Realized Vol (1h window)",
+  "rollingVolDesc": "Calculated from live price data",
+  "fixedVolLabel": "Fixed 50% IV",
+  "fixedVolDesc": "Constant implied volatility for all strikes",
+
+  "about": "ABOUT",
+  "appName": "Tradee",
+  "appSubtitle": "Crypto Daily Options Simulator",
+  "pricingModel": "Pricing Model",
+  "pricingModelValue": "Black-Scholes (European)",
+  "expiry": "Expiry",
+  "expiryValue": "Daily 05:29:59 IST",
+
+  "addLeg": "ADD LEG",
+  "totalCostCredit": "Total Cost/Credit",
+  "maxProfit": "Max Profit: ",
+  "maxLoss": "Max Loss: ",
+
+  "calls": "CALLS",
+  "puts": "PUTS",
+  "strike": "STRIKE",
+  "atm": "ATM",
+
+  "pending": "PENDING",
+  "longLabel": "LONG",
+  "shortLabel": "SHORT",
+
+  "failedToLoadChain": "Failed to load chain",
+  "retry": "Retry"
+}

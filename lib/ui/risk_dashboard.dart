@@ -42,26 +42,26 @@ class RiskDashboard extends HookConsumerWidget {
               ),
             ),
           const SizedBox(height: 8),
-          _buildGreekCard('Net Delta (Δ)', greeks.delta,
+          _buildGreekCard(context, 'Net Delta (Δ)', greeks.delta,
               'Price sensitivity per \$1 move'),
-          _buildGreekCard('Net Gamma (Γ)', greeks.gamma,
+          _buildGreekCard(context, 'Net Gamma (Γ)', greeks.gamma,
               'Delta change rate'),
-          _buildGreekCard('Net Vega (ν)', greeks.vega,
+          _buildGreekCard(context, 'Net Vega (ν)', greeks.vega,
               'Sensitivity to 1% vol change'),
-          _buildGreekCard('Net Theta (Θ)', greeks.theta,
+          _buildGreekCard(context, 'Net Theta (Θ)', greeks.theta,
               'Time decay per day'),
           const SizedBox(height: 24),
-          _buildStressTestCard(stressShift, stressedPnL, positions),
+          _buildStressTestCard(context, stressShift, stressedPnL, positions),
           const SizedBox(height: 16),
-          _buildMarginCard(marginStatus),
+          _buildMarginCard(context, marginStatus),
         ],
       ),
     );
   }
 
-  Widget _buildGreekCard(String label, double value, String desc) {
+  Widget _buildGreekCard(BuildContext context, String label, double value, String desc) {
     return Card(
-      color: const Color(0xFF1E2329),
+      color: Theme.of(context).colorScheme.surface,
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -96,6 +96,7 @@ class RiskDashboard extends HookConsumerWidget {
   }
 
   Widget _buildStressTestCard(
+    BuildContext context,
     ValueNotifier<double> stressShift,
     double stressedPnL,
     List<Position> positions,
@@ -103,7 +104,7 @@ class RiskDashboard extends HookConsumerWidget {
     final hasPositions = positions.any((p) => p.isFilled);
 
     return Card(
-      color: const Color(0xFF1E2329),
+      color: Theme.of(context).colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -137,7 +138,7 @@ class RiskDashboard extends HookConsumerWidget {
               min: -10,
               max: 10,
               divisions: 40,
-              activeColor: const Color(0xFFF0B90B),
+              activeColor: Theme.of(context).colorScheme.primary,
               label: '${stressShift.value.toStringAsFixed(1)}%',
               onChanged: (v) => stressShift.value = v,
             ),
@@ -161,7 +162,7 @@ class RiskDashboard extends HookConsumerWidget {
     );
   }
 
-  Widget _buildMarginCard(MarginStatus status) {
+  Widget _buildMarginCard(BuildContext context, MarginStatus status) {
     final ratio = status.maintenanceMargin == 0
         ? 0.0
         : status.maintenanceMargin / status.equity;
@@ -172,7 +173,7 @@ class RiskDashboard extends HookConsumerWidget {
             : Colors.redAccent;
 
     return Card(
-      color: const Color(0xFF1E2329),
+      color: Theme.of(context).colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

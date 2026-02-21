@@ -4,14 +4,14 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../core/constants.dart';
 import '../features/market_state.dart';
 import '../features/portfolio_state.dart';
-import '../engines/spread_engine.dart';
+import 'widgets/info_row.dart';
 
 void showTradeBottomSheet(
     BuildContext context, OptionContract contract, String symbol, double spot) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    backgroundColor: const Color(0xFF1E2329),
+    backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
@@ -100,16 +100,11 @@ class TradeBottomSheet extends HookConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _buildInfoRow(
-              'Bid', '\$${contract.spread.bid.toStringAsFixed(2)}'),
-          _buildInfoRow(
-              'Ask', '\$${contract.spread.ask.toStringAsFixed(2)}'),
-          _buildInfoRow(
-              'Spread', '\$${contract.spread.spread.toStringAsFixed(2)}'),
-          _buildInfoRow(
-              'IV', '${(contract.iv * 100).toStringAsFixed(1)}%'),
-          _buildInfoRow(
-              'Est. Margin', '\$${marginPreview.toStringAsFixed(2)}'),
+          InfoRow(label: 'Bid', value: '\$${contract.spread.bid.toStringAsFixed(2)}'),
+          InfoRow(label: 'Ask', value: '\$${contract.spread.ask.toStringAsFixed(2)}'),
+          InfoRow(label: 'Spread', value: '\$${contract.spread.spread.toStringAsFixed(2)}'),
+          InfoRow(label: 'IV', value: '${(contract.iv * 100).toStringAsFixed(1)}%'),
+          InfoRow(label: 'Est. Margin', value: '\$${marginPreview.toStringAsFixed(2)}'),
           const SizedBox(height: 24),
           Row(
             children: [
@@ -154,19 +149,6 @@ class TradeBottomSheet extends HookConsumerWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white54)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
   void _confirmAndPlace(WidgetRef ref, BuildContext context, double qtyFactor,
       String oType, double limitPrice, double qty) {
     final side = qtyFactor > 0 ? 'BUY' : 'SELL';
@@ -178,7 +160,7 @@ class TradeBottomSheet extends HookConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E2329),
+        backgroundColor: Theme.of(context).colorScheme.surface,
         title: Text('Confirm $side'),
         content: Text(
           '$side ${qty.toStringAsFixed(1)} x $typeLabel ${contract.strike.toStringAsFixed(0)}\n'
@@ -206,51 +188,28 @@ class TradeBottomSheet extends HookConsumerWidget {
   }
 
   void _placeOrder(WidgetRef ref, BuildContext context, double qtyFactor,
-      String oType, double limitPrice, double qty) {
-    double entryPrice;
-    if (oType == 'market') {
-      final rollingVols = ref.read(rollingVolatilityProvider);
-      final currentVol = rollingVols[symbol] ?? AppConstants.defaultBaseVolatility;
-      entryPrice = SpreadEngine.fillPrice(
-        midPrice: contract.greeks.premium,
-        quantity: qty * qtyFactor,
-        realizedVol: currentVol,
-      );
-    } else {
-      entryPrice = limitPrice;
-    }
+      String oType, double limitPrice, double qty) async {
+    final rollingVols = ref.read(rollingVolatilityProvider);
+    final currentVol = rollingVols[symbol] ?? AppConstants.defaultBaseVolatility;
 
-    final pos = Position(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    final result = await ref.read(portfolioProvider.notifier).placeOrder(
       symbol: symbol,
       strike: contract.strike,
       type: contract.type.name,
-      quantity: qty * qtyFactor,
-      entryPrice: entryPrice,
+      quantity: qty,
+      qtyFactor: qtyFactor,
       orderType: oType,
-      isFilled: oType == 'market',
-      timestamp: DateTime.now(),
+      midPrice: contract.greeks.premium,
+      limitPrice: limitPrice,
+      currentVol: currentVol,
+      balanceNotifier: ref.read(balanceProvider.notifier),
+      currentBalance: ref.read(balanceProvider),
     );
 
-    ref.read(portfolioProvider.notifier).addOrder(pos);
-
-    final currentBalance = ref.read(balanceProvider);
-    if (oType == 'market') {
-      final cost = entryPrice * qty * qtyFactor;
-      ref.read(balanceProvider.notifier).updateBalance(currentBalance - cost);
-    } else {
-      final marginHold = entryPrice * qty;
-      ref.read(balanceProvider.notifier).updateBalance(currentBalance - marginHold);
-    }
-
+    if (!context.mounted) return;
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(oType == 'market'
-            ? 'Filled @ \$${entryPrice.toStringAsFixed(2)}'
-            : 'Limit Order Placed @ \$${limitPrice.toStringAsFixed(2)}'),
-        backgroundColor: Colors.green,
-      ),
+      SnackBar(content: Text(result.message), backgroundColor: Colors.green),
     );
   }
 }

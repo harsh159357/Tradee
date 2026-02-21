@@ -1,14 +1,30 @@
+import 'dart:developer' as developer;
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'core/router.dart';
 import 'data/storage_service.dart';
 import 'features/market_state.dart';
 import 'features/portfolio_state.dart';
 import 'features/risk_state.dart';
 import 'ui/theme.dart';
-import 'ui/navigation_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (details) {
+    developer.log('Flutter error: ${details.exceptionAsString()}',
+        name: 'FlutterError', error: details.exception, stackTrace: details.stack);
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    developer.log('Unhandled error: $error',
+        name: 'PlatformError', error: error, stackTrace: stack);
+    return true;
+  };
+
   await StorageService.init();
   runApp(const ProviderScope(child: TradeeApp()));
 }
@@ -21,7 +37,6 @@ class TradeeApp extends ConsumerStatefulWidget {
 }
 
 class _TradeeAppState extends ConsumerState<TradeeApp> {
-  final _navigatorKey = GlobalKey<NavigatorState>();
   bool _liquidationHandled = false;
   bool _expiryHandled = false;
 
@@ -80,7 +95,7 @@ class _TradeeAppState extends ConsumerState<TradeeApp> {
   }
 
   void _showSnackBar(String message, Color color) {
-    final ctx = _navigatorKey.currentContext;
+    final ctx = navigatorKey.currentContext;
     if (ctx != null) {
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
@@ -94,12 +109,18 @@ class _TradeeAppState extends ConsumerState<TradeeApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: _navigatorKey,
+    return MaterialApp.router(
+      routerConfig: appRouter,
       title: 'Tradee',
       theme: AppTheme.darkTheme,
-      home: const MainNavigationWrapper(),
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
     );
   }
 }

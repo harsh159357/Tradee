@@ -16,7 +16,7 @@ void main() {
 
     test('T is less than 1 day in years', () {
       final t = engine.calculateT();
-      final oneDayInYears = 1.0 / 365.0;
+      const oneDayInYears = 1.0 / 365.0;
       expect(t, lessThanOrEqualTo(oneDayInYears + 0.0001));
     });
 

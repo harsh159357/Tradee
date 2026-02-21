@@ -20,7 +20,7 @@ void main() {
       );
       // Put-call parity: C - P = S - K*e^(-rT)
       final parity = call.premium - put.premium;
-      final expected = 100 - 100 * 0.951229; // e^(-0.05) ≈ 0.951229
+      const expected = 100 - 100 * 0.951229; // e^(-0.05) ≈ 0.951229
       expect(parity, closeTo(expected, 0.1));
     });
 

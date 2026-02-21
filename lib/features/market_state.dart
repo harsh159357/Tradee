@@ -6,7 +6,6 @@ import '../core/constants.dart';
 import '../data/market_data_service.dart';
 import '../data/storage_service.dart';
 import '../domain/option_contract.dart';
-import '../domain/price_point.dart';
 import '../engines/pricing_engine.dart';
 import '../engines/spread_engine.dart';
 import '../engines/time_engine.dart';
@@ -17,6 +16,7 @@ export '../domain/option_contract.dart';
 export '../domain/price_point.dart';
 
 Completer<List<OptionContract>>? _activeChainComputation;
+String? _activeChainKey;
 
 final marketDataProvider = Provider((ref) {
   final service = MarketDataService();
@@ -27,6 +27,10 @@ final marketDataProvider = Provider((ref) {
 
 final pricesProvider = StreamProvider<Map<String, double>>((ref) {
   return ref.watch(marketDataProvider).priceStream;
+});
+
+final connectionStateProvider = StreamProvider<WsConnectionState>((ref) {
+  return ref.watch(marketDataProvider).connectionStateStream;
 });
 
 final timeProvider = Provider((ref) => TimeEngine());
@@ -86,14 +90,18 @@ final optionsChainProvider = FutureProvider<List<OptionContract>>((ref) async {
 
   _checkLimitOrderFills(ref, spot, t, baseVol);
 
-  // If an isolate computation is already running, wait for it and reuse the result
-  // rather than spawning a second concurrent isolate.
-  if (_activeChainComputation != null && !_activeChainComputation!.isCompleted) {
+  final chainKey = '$symbol:${spot.toStringAsFixed(2)}';
+
+  // Reuse in-flight computation only if it matches the current inputs.
+  if (_activeChainComputation != null &&
+      !_activeChainComputation!.isCompleted &&
+      _activeChainKey == chainKey) {
     return _activeChainComputation!.future;
   }
 
   final completer = Completer<List<OptionContract>>();
   _activeChainComputation = completer;
+  _activeChainKey = chainKey;
 
   try {
     final chain = await Isolate.run(() => _computeChain(spot, symbol, t, baseVol));

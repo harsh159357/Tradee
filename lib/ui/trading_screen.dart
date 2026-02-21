@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../core/constants.dart';
 import '../features/market_state.dart';
 import 'trade_bottom_sheet.dart';
 
@@ -9,11 +10,12 @@ class TradingScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final symbol = ref.watch(selectedAssetProvider);
-    final prices = ref.watch(pricesProvider).value ?? {};
+    final pricesAsync = ref.watch(pricesProvider);
+    final prices = pricesAsync.value ?? {};
     final spot = prices[symbol] ?? 0.0;
     final te = ref.watch(timeProvider);
     final countdown = te.getCountdown();
-    final chain = ref.watch(optionsChainProvider).value ?? [];
+    final chainAsync = ref.watch(optionsChainProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -29,6 +31,14 @@ class TradingScreen extends HookConsumerWidget {
           ],
         ),
         actions: [
+          if (pricesAsync is AsyncLoading)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 16, height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Column(
@@ -49,15 +59,34 @@ class TradingScreen extends HookConsumerWidget {
       ),
       body: Column(
         children: [
-          _buildChainHeader(),
+          _buildChainHeader(context),
           Expanded(
-            child: ListView.builder(
-              itemCount: chain.length ~/ 2,
-              itemBuilder: (context, index) {
-                final call = chain[index * 2];
-                final put = chain[index * 2 + 1];
-                return _buildOptionRow(context, call, put, symbol, spot);
-              },
+            child: chainAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                    const SizedBox(height: 12),
+                    Text('Failed to load chain: $e',
+                        style: const TextStyle(color: Colors.white54)),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: () => ref.invalidate(optionsChainProvider),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+              data: (chain) => ListView.builder(
+                itemCount: chain.length ~/ 2,
+                itemBuilder: (context, index) {
+                  final call = chain[index * 2];
+                  final put = chain[index * 2 + 1];
+                  return _buildOptionRow(context, call, put, symbol, spot);
+                },
+              ),
             ),
           ),
         ],
@@ -65,10 +94,10 @@ class TradingScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildChainHeader() {
+  Widget _buildChainHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      color: const Color(0xFF1E2329),
+      color: Theme.of(context).colorScheme.surface,
       child: const Row(
         children: [
           Expanded(
@@ -106,7 +135,7 @@ class TradingScreen extends HookConsumerWidget {
 
   Widget _buildOptionRow(BuildContext context, OptionContract call,
       OptionContract put, String symbol, double spot) {
-    final isATM = (call.strike - spot).abs() / spot < 0.015;
+    final isATM = (call.strike - spot).abs() / spot < AppConstants.atmThreshold;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
@@ -129,14 +158,14 @@ class TradingScreen extends HookConsumerWidget {
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                     color: isATM
-                        ? const Color(0xFFF0B90B)
+                        ? Theme.of(context).colorScheme.primary
                         : Colors.white,
                   ),
                 ),
                 if (isATM)
-                  const Text('ATM',
+                  Text('ATM',
                       style: TextStyle(
-                          fontSize: 8, color: Color(0xFFF0B90B))),
+                          fontSize: 8, color: Theme.of(context).colorScheme.primary)),
               ],
             ),
           ),
