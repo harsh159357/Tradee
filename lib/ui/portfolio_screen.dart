@@ -55,23 +55,38 @@ class PortfolioScreen extends HookConsumerWidget {
 
   Widget _buildStatsHeader(MarginStatus status, double realizedPnL) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      child: Column(
         children: [
-          _statColumn('Equity', '\$${status.equity.toStringAsFixed(2)}',
-              const Color(0xFFF0B90B)),
-          _statColumn('Margin', '\$${status.maintenanceMargin.toStringAsFixed(2)}',
-              Colors.white),
-          _statColumn(
-            'Unrealized',
-            '${status.unrealizedPnL >= 0 ? "+" : ""}\$${status.unrealizedPnL.toStringAsFixed(2)}',
-            status.unrealizedPnL >= 0 ? Colors.greenAccent : Colors.redAccent,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _statColumn('Equity', '\$${status.equity.toStringAsFixed(2)}',
+                  const Color(0xFFF0B90B)),
+              _statColumn('Used Margin', '\$${status.maintenanceMargin.toStringAsFixed(2)}',
+                  Colors.white),
+              _statColumn(
+                'Available',
+                '\$${status.availableMargin.toStringAsFixed(2)}',
+                status.availableMargin >= 0 ? Colors.white70 : Colors.redAccent,
+              ),
+            ],
           ),
-          _statColumn(
-            'Realized',
-            '${realizedPnL >= 0 ? "+" : ""}\$${realizedPnL.toStringAsFixed(2)}',
-            realizedPnL >= 0 ? Colors.greenAccent : Colors.redAccent,
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _statColumn(
+                'Unrealized',
+                '${status.unrealizedPnL >= 0 ? "+" : ""}\$${status.unrealizedPnL.toStringAsFixed(2)}',
+                status.unrealizedPnL >= 0 ? Colors.greenAccent : Colors.redAccent,
+              ),
+              _statColumn(
+                'Realized',
+                '${realizedPnL >= 0 ? "+" : ""}\$${realizedPnL.toStringAsFixed(2)}',
+                realizedPnL >= 0 ? Colors.greenAccent : Colors.redAccent,
+              ),
+            ],
           ),
         ],
       ),

@@ -21,9 +21,10 @@ class AssetSelectionScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prices = ref.watch(pricesProvider).value ?? {};
-    final openPrices = ref.watch(sessionOpenPriceProvider);
+    final change24h = ref.watch(change24hProvider).value ?? {};
     final assets = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
-    final countdown = ref.watch(timeProvider).getCountdown();
+    final te = ref.watch(timeProvider);
+    final countdown = te.getCountdown();
 
     return Scaffold(
       appBar: AppBar(
@@ -37,10 +38,10 @@ class AssetSelectionScreen extends HookConsumerWidget {
               children: [
                 const Icon(Icons.access_time, size: 14, color: Colors.white54),
                 const SizedBox(width: 4),
-                Text(countdown,
+                Text('$countdown  Exp ${te.expiryIST}',
                     style: const TextStyle(
                         fontFamily: 'Courier',
-                        fontSize: 12,
+                        fontSize: 11,
                         color: Colors.white54)),
               ],
             ),
@@ -53,8 +54,7 @@ class AssetSelectionScreen extends HookConsumerWidget {
         itemBuilder: (context, index) {
           final symbol = assets[index];
           final price = prices[symbol] ?? 0.0;
-          final openPrice = openPrices[symbol] ?? 0.0;
-          final pctChange = openPrice > 0 ? ((price - openPrice) / openPrice) * 100 : 0.0;
+          final pctChange = change24h[symbol] ?? 0.0;
 
           return Card(
             margin:
@@ -114,21 +114,16 @@ class AssetSelectionScreen extends HookConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        if (openPrice > 0)
-                          Text(
-                            '${pctChange >= 0 ? "+" : ""}${pctChange.toStringAsFixed(2)}%',
-                            style: TextStyle(
-                              color: pctChange >= 0
-                                  ? Colors.greenAccent
-                                  : Colors.redAccent,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          )
-                        else
-                          const Text('Daily Options',
-                              style: TextStyle(
-                                  color: Colors.white38, fontSize: 10)),
+                        Text(
+                          '${pctChange >= 0 ? "+" : ""}${pctChange.toStringAsFixed(2)}%  24h',
+                          style: TextStyle(
+                            color: pctChange >= 0
+                                ? Colors.greenAccent
+                                : Colors.redAccent,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ],

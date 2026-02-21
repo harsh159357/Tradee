@@ -6,6 +6,7 @@ import 'market_state.dart';
 import 'portfolio_state.dart';
 import '../engines/pricing_engine.dart';
 import '../engines/margin_engine.dart';
+import '../engines/spread_engine.dart';
 import '../engines/volatility_engine.dart';
 
 export '../domain/margin_status.dart';
@@ -50,17 +51,21 @@ final marginStatusProvider = Provider<MarginStatus>((ref) {
   }
 
   final equity = balance + totalUnrealizedPnL;
+  final availableMargin = equity - totalMarginRequired;
   final hasFilledPositions = positions.any((p) => p.isFilled);
   final isLiquidated = equity < totalMarginRequired && hasFilledPositions;
 
   return MarginStatus(
     equity: equity,
     maintenanceMargin: totalMarginRequired,
+    availableMargin: availableMargin,
     unrealizedPnL: totalUnrealizedPnL,
     isLiquidated: isLiquidated,
   );
 });
 
+/// Force-close exit prices use worst bid/ask per the spec:
+/// Long positions exit at bid (worst for seller), short at ask (worst for buyer).
 Map<String, double> calculateExitPrices(
   List<Position> positions,
   Map<String, double> prices,
@@ -81,7 +86,14 @@ Map<String, double> calculateExitPrices(
       S: spot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
       type: pos.type == 'call' ? OptionType.call : OptionType.put,
     );
-    exitPrices[pos.id] = res.premium;
+    final spread = SpreadEngine.calculate(
+      midPrice: res.premium,
+      realizedVol: baseVol,
+    );
+
+    // Long positions close at bid (worst for seller)
+    // Short positions close at ask (worst for buyer-back)
+    exitPrices[pos.id] = pos.quantity > 0 ? spread.bid : spread.ask;
   }
   return exitPrices;
 }

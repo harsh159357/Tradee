@@ -120,11 +120,8 @@ class TradeBottomSheet extends HookConsumerWidget {
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.all(16),
                   ),
-                  onPressed: () => _placeOrder(
-                    ref,
-                    context,
-                    1.0,
-                    orderType.value,
+                  onPressed: () => _confirmAndPlace(
+                    ref, context, 1.0, orderType.value,
                     double.tryParse(priceController.text) ?? 0,
                     double.tryParse(qtyController.text) ?? 1,
                   ),
@@ -140,11 +137,8 @@ class TradeBottomSheet extends HookConsumerWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.all(16),
                   ),
-                  onPressed: () => _placeOrder(
-                    ref,
-                    context,
-                    -1.0,
-                    orderType.value,
+                  onPressed: () => _confirmAndPlace(
+                    ref, context, -1.0, orderType.value,
                     double.tryParse(priceController.text) ?? 0,
                     double.tryParse(qtyController.text) ?? 1,
                   ),
@@ -168,6 +162,44 @@ class TradeBottomSheet extends HookConsumerWidget {
         children: [
           Text(label, style: const TextStyle(color: Colors.white54)),
           Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  void _confirmAndPlace(WidgetRef ref, BuildContext context, double qtyFactor,
+      String oType, double limitPrice, double qty) {
+    final side = qtyFactor > 0 ? 'BUY' : 'SELL';
+    final typeLabel = contract.type.name.toUpperCase();
+    final priceLabel = oType == 'market'
+        ? 'Market'
+        : '\$${limitPrice.toStringAsFixed(2)}';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E2329),
+        title: Text('Confirm $side'),
+        content: Text(
+          '$side ${qty.toStringAsFixed(1)} x $typeLabel ${contract.strike.toStringAsFixed(0)}\n'
+          'Order: ${oType.toUpperCase()} @ $priceLabel',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _placeOrder(ref, context, qtyFactor, oType, limitPrice, qty);
+            },
+            child: Text('CONFIRM $side',
+                style: TextStyle(
+                  color: qtyFactor > 0 ? Colors.greenAccent : Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                )),
+          ),
         ],
       ),
     );

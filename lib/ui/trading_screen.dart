@@ -12,7 +12,8 @@ class TradingScreen extends HookConsumerWidget {
     final symbol = ref.watch(selectedAssetProvider);
     final prices = ref.watch(pricesProvider).value ?? {};
     final spot = prices[symbol] ?? 0.0;
-    final countdown = ref.watch(timeProvider).getCountdown();
+    final te = ref.watch(timeProvider);
+    final countdown = te.getCountdown();
     final chain = ref.watch(optionsChainProvider).value ?? [];
 
     return Scaffold(
@@ -31,9 +32,18 @@ class TradingScreen extends HookConsumerWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Text(countdown,
-                style: const TextStyle(
-                    fontFamily: 'Courier', fontWeight: FontWeight.bold)),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(countdown,
+                    style: const TextStyle(
+                        fontFamily: 'Courier', fontWeight: FontWeight.bold, fontSize: 14)),
+                Text('Exp ${te.expiryIST}',
+                    style: const TextStyle(
+                        fontFamily: 'Courier', fontSize: 9, color: Colors.white38)),
+              ],
+            ),
           )
         ],
         backgroundColor: Colors.transparent,

@@ -8,6 +8,9 @@ class Position {
   final String orderType;
   final bool isFilled;
   final DateTime timestamp;
+  /// Expiry date for this position. Defaults to today's daily expiry.
+  /// Stored for future multi-expiry support.
+  final DateTime? expiry;
 
   Position({
     required this.id,
@@ -19,6 +22,7 @@ class Position {
     required this.orderType,
     required this.isFilled,
     required this.timestamp,
+    this.expiry,
   });
 
   Map<String, dynamic> toMap() => {
@@ -31,6 +35,7 @@ class Position {
     'orderType': orderType,
     'isFilled': isFilled,
     'timestamp': timestamp.toIso8601String(),
+    if (expiry != null) 'expiry': expiry!.toIso8601String(),
   };
 
   factory Position.fromMap(Map<dynamic, dynamic> map) => Position(
@@ -45,6 +50,7 @@ class Position {
     timestamp: map['timestamp'] != null
         ? DateTime.parse(map['timestamp'])
         : DateTime.now(),
+    expiry: map['expiry'] != null ? DateTime.parse(map['expiry']) : null,
   );
 
   Position copyWith({bool? isFilled, double? entryPrice}) => Position(
@@ -57,6 +63,7 @@ class Position {
     orderType: orderType,
     isFilled: isFilled ?? this.isFilled,
     timestamp: timestamp,
+    expiry: expiry,
   );
 }
 
@@ -71,6 +78,7 @@ class TradeRecord {
   final double realizedPnL;
   final DateTime openedAt;
   final DateTime closedAt;
+  final DateTime? expiry;
 
   TradeRecord({
     required this.id,
@@ -83,6 +91,7 @@ class TradeRecord {
     required this.realizedPnL,
     required this.openedAt,
     required this.closedAt,
+    this.expiry,
   });
 
   Map<String, dynamic> toMap() => {
@@ -96,6 +105,7 @@ class TradeRecord {
     'realizedPnL': realizedPnL,
     'openedAt': openedAt.toIso8601String(),
     'closedAt': closedAt.toIso8601String(),
+    if (expiry != null) 'expiry': expiry!.toIso8601String(),
   };
 
   factory TradeRecord.fromMap(Map<dynamic, dynamic> map) => TradeRecord(
@@ -109,5 +119,6 @@ class TradeRecord {
     realizedPnL: (map['realizedPnL'] as num).toDouble(),
     openedAt: DateTime.parse(map['openedAt']),
     closedAt: DateTime.parse(map['closedAt']),
+    expiry: map['expiry'] != null ? DateTime.parse(map['expiry']) : null,
   );
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:isolate';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -13,6 +14,8 @@ import 'portfolio_state.dart';
 
 export '../domain/option_contract.dart';
 export '../domain/price_point.dart';
+
+Completer<List<OptionContract>>? _activeChainComputation;
 
 final marketDataProvider = Provider((ref) {
   final service = MarketDataService();
@@ -33,19 +36,11 @@ final tValueProvider = StreamProvider<double>((ref) {
 
 final selectedAssetProvider = StateProvider<String>((ref) => 'BTCUSDT');
 
-/// Captures the first price seen per symbol in this session to derive % change.
-final sessionOpenPriceProvider = Provider<Map<String, double>>((ref) {
-  final prices = ref.watch(pricesProvider).value ?? {};
-  final stored = ref.read(_sessionOpenStorageProvider);
-  for (final entry in prices.entries) {
-    if (entry.value > 0 && !stored.containsKey(entry.key)) {
-      stored[entry.key] = entry.value;
-    }
-  }
-  return Map.unmodifiable(stored);
+/// Fetches true 24h price change % from Binance REST API.
+final change24hProvider = FutureProvider<Map<String, double>>((ref) async {
+  final service = ref.watch(marketDataProvider);
+  return service.fetch24hChange();
 });
-
-final _sessionOpenStorageProvider = Provider<Map<String, double>>((ref) => {});
 
 final priceHistoryProvider = StreamProvider<Map<String, List<PricePoint>>>((ref) {
   final service = ref.watch(marketDataProvider);
@@ -77,8 +72,23 @@ final optionsChainProvider = FutureProvider<List<OptionContract>>((ref) async {
 
   _checkLimitOrderFills(ref, spot, t, baseVol);
 
-  final chain = await Isolate.run(() => _computeChain(spot, symbol, t, baseVol));
-  return chain;
+  // If an isolate computation is already running, wait for it and reuse the result
+  // rather than spawning a second concurrent isolate.
+  if (_activeChainComputation != null && !_activeChainComputation!.isCompleted) {
+    return _activeChainComputation!.future;
+  }
+
+  final completer = Completer<List<OptionContract>>();
+  _activeChainComputation = completer;
+
+  try {
+    final chain = await Isolate.run(() => _computeChain(spot, symbol, t, baseVol));
+    completer.complete(chain);
+    return chain;
+  } catch (e) {
+    completer.completeError(e);
+    rethrow;
+  }
 });
 
 List<OptionContract> _computeChain(

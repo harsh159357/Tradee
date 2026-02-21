@@ -3,11 +3,12 @@ import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:http/http.dart' as http;
 import '../core/constants.dart';
+import '../domain/market_data_source.dart';
 import '../domain/price_point.dart';
 
 export '../domain/price_point.dart';
 
-class MarketDataService {
+class MarketDataService implements MarketDataSource {
   WebSocketChannel? _channel;
   static const _wsBaseUrl = "wss://stream.binance.com:9443/ws";
   static const _restBaseUrl = "https://api.binance.com/api/v3";
@@ -144,6 +145,29 @@ class MarketDataService {
 
   Map<String, double> get latestPrices => Map.unmodifiable(_latestPrices);
 
+  /// Fetches 24h price change percentage from Binance REST API
+  Future<Map<String, double>> fetch24hChange() async {
+    final result = <String, double>{};
+    try {
+      final symbolsParam =
+          AppConstants.supportedAssets.map((s) => '"$s"').join(',');
+      final uri = Uri.parse(
+        '$_restBaseUrl/ticker/24hr?symbols=[$symbolsParam]',
+      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        for (final item in data) {
+          final symbol = item['symbol'] as String;
+          final pctChange = double.tryParse(item['priceChangePercent'] ?? '0') ?? 0.0;
+          result[symbol] = pctChange;
+        }
+      }
+    } catch (_) {}
+    return result;
+  }
+
+  @override
   void dispose() {
     _heartbeatTimer?.cancel();
     _restFallbackTimer?.cancel();

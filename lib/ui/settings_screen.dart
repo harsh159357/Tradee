@@ -90,7 +90,7 @@ class SettingsScreen extends HookConsumerWidget {
           const ListTile(
             leading: Icon(Icons.access_time),
             title: Text('Expiry'),
-            trailing: Text('Daily 23:59:59 UTC'),
+            trailing: Text('Daily 05:29:59 IST'),
           ),
         ],
       ),
