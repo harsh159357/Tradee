@@ -16,12 +16,20 @@ class SpreadResult {
 
 class SpreadEngine {
   static const double _minimumTick = 0.01;
+  static const double _baseSpreadPercent = 0.005;
+  static const double _defaultBaseVol = 0.50;
 
   static SpreadResult calculate({
     required double midPrice,
-    double spreadPercent = 0.005,
+    double spreadPercent = _baseSpreadPercent,
+    double realizedVol = _defaultBaseVol,
   }) {
-    final halfSpread = math.max(midPrice * spreadPercent / 2, _minimumTick);
+    // Widen spreads under extreme volatility (>2x baseline)
+    final volRatio = realizedVol / _defaultBaseVol;
+    final volMultiplier = volRatio > 2.0 ? 1.0 + (volRatio - 2.0) * 0.5 : 1.0;
+    final adjustedSpread = spreadPercent * volMultiplier;
+
+    final halfSpread = math.max(midPrice * adjustedSpread / 2, _minimumTick);
     final bid = math.max(midPrice - halfSpread, _minimumTick);
     final ask = midPrice + halfSpread;
 
@@ -36,10 +44,15 @@ class SpreadEngine {
   static double fillPrice({
     required double midPrice,
     required double quantity,
-    double spreadPercent = 0.005,
+    double spreadPercent = _baseSpreadPercent,
     double slippagePerUnit = 0.001,
+    double realizedVol = _defaultBaseVol,
   }) {
-    final sr = calculate(midPrice: midPrice, spreadPercent: spreadPercent);
+    final sr = calculate(
+      midPrice: midPrice,
+      spreadPercent: spreadPercent,
+      realizedVol: realizedVol,
+    );
 
     final slippage = (quantity.abs() / 100.0) * slippagePerUnit * midPrice;
     if (quantity > 0) {

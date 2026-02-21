@@ -26,6 +26,20 @@ final tValueProvider = StreamProvider<double>((ref) {
 
 final selectedAssetProvider = StateProvider<String>((ref) => 'BTCUSDT');
 
+/// Captures the first price seen per symbol in this session to derive % change.
+final sessionOpenPriceProvider = Provider<Map<String, double>>((ref) {
+  final prices = ref.watch(pricesProvider).value ?? {};
+  final stored = ref.read(_sessionOpenStorageProvider);
+  for (final entry in prices.entries) {
+    if (entry.value > 0 && !stored.containsKey(entry.key)) {
+      stored[entry.key] = entry.value;
+    }
+  }
+  return Map.unmodifiable(stored);
+});
+
+final _sessionOpenStorageProvider = Provider<Map<String, double>>((ref) => {});
+
 class OptionContract {
   final double strike;
   final OptionType type;
@@ -92,7 +106,10 @@ final optionsChainProvider = Provider<List<OptionContract>>((ref) {
       final greeks = BlackScholesEngine.calculate(
         S: spot, K: strike, T: t, r: 0.05, v: iv, type: type,
       );
-      final spread = SpreadEngine.calculate(midPrice: greeks.premium);
+      final spread = SpreadEngine.calculate(
+        midPrice: greeks.premium,
+        realizedVol: baseVol,
+      );
 
       chain.add(OptionContract(
         strike: strike,

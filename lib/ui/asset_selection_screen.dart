@@ -21,6 +21,7 @@ class AssetSelectionScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prices = ref.watch(pricesProvider).value ?? {};
+    final openPrices = ref.watch(sessionOpenPriceProvider);
     final assets = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
     final countdown = ref.watch(timeProvider).getCountdown();
 
@@ -52,6 +53,8 @@ class AssetSelectionScreen extends HookConsumerWidget {
         itemBuilder: (context, index) {
           final symbol = assets[index];
           final price = prices[symbol] ?? 0.0;
+          final openPrice = openPrices[symbol] ?? 0.0;
+          final pctChange = openPrice > 0 ? ((price - openPrice) / openPrice) * 100 : 0.0;
 
           return Card(
             margin:
@@ -111,9 +114,21 @@ class AssetSelectionScreen extends HookConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        const Text('Daily Options',
+                        if (openPrice > 0)
+                          Text(
+                            '${pctChange >= 0 ? "+" : ""}${pctChange.toStringAsFixed(2)}%',
                             style: TextStyle(
-                                color: Colors.white38, fontSize: 10)),
+                              color: pctChange >= 0
+                                  ? Colors.greenAccent
+                                  : Colors.redAccent,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          )
+                        else
+                          const Text('Daily Options',
+                              style: TextStyle(
+                                  color: Colors.white38, fontSize: 10)),
                       ],
                     ),
                   ],

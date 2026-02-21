@@ -28,6 +28,28 @@ class StrategyBuilderScreen extends HookConsumerWidget {
       totalPremium += leg.greeks.premium;
     }
 
+    double maxProfit = double.negativeInfinity;
+    double maxLoss = double.infinity;
+    if (legs.value.isNotEmpty && spot > 0) {
+      final startPrice = spot * 0.80;
+      final endPrice = spot * 1.20;
+      for (int i = 0; i <= 200; i++) {
+        final s = startPrice + (endPrice - startPrice) * i / 200;
+        double pnl = 0;
+        for (final leg in legs.value) {
+          final intrinsic = leg.type == OptionType.call
+              ? (s > leg.strike ? s - leg.strike : 0.0)
+              : (leg.strike > s ? leg.strike - s : 0.0);
+          pnl += intrinsic - leg.greeks.premium;
+        }
+        if (pnl > maxProfit) maxProfit = pnl;
+        if (pnl < maxLoss) maxLoss = pnl;
+      }
+    } else {
+      maxProfit = 0;
+      maxLoss = 0;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Strategy Builder'),
@@ -41,7 +63,7 @@ class StrategyBuilderScreen extends HookConsumerWidget {
       ),
       body: Column(
         children: [
-          _buildSummaryHeader(totalPremium, totalDelta, totalGamma, totalVega, totalTheta),
+          _buildSummaryHeader(totalPremium, totalDelta, totalGamma, totalVega, totalTheta, maxProfit, maxLoss),
           if (legs.value.isNotEmpty)
             Container(
               height: 220,
@@ -96,7 +118,10 @@ class StrategyBuilderScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildSummaryHeader(double premium, double d, double g, double v, double t) {
+  Widget _buildSummaryHeader(
+    double premium, double d, double g, double v, double t,
+    double maxProfit, double maxLoss,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       color: const Color(0xFF1E2329),
@@ -109,7 +134,35 @@ class StrategyBuilderScreen extends HookConsumerWidget {
               Text('\$${premium.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFF0B90B))),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Text('Max Profit: ', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  Text(
+                    maxProfit == double.infinity || maxProfit == double.negativeInfinity
+                        ? '—'
+                        : '\$${maxProfit.toStringAsFixed(2)}',
+                    style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.w600, fontSize: 11),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  const Text('Max Loss: ', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  Text(
+                    maxLoss == double.infinity || maxLoss == double.negativeInfinity
+                        ? '—'
+                        : '\$${maxLoss.toStringAsFixed(2)}',
+                    style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600, fontSize: 11),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [

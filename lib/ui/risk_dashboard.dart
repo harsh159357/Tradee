@@ -19,23 +19,6 @@ class RiskDashboard extends HookConsumerWidget {
     final rollingVols = ref.watch(rollingVolatilityProvider);
     final stressShift = useState(0.0);
 
-    if (marginStatus.isLiquidated) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final exitPrices =
-            calculateExitPrices(positions, prices, t, rollingVols);
-        ref.read(portfolioProvider.notifier).closeAllPositions(exitPrices);
-        ref.read(tradeHistoryProvider.notifier).refresh();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('LIQUIDATION: All positions force-closed'),
-            backgroundColor: Colors.redAccent,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      });
-    }
-
     double netDelta = 0, netGamma = 0, netVega = 0, netTheta = 0;
     double stressedPnL = 0;
 

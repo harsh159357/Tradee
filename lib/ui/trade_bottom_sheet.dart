@@ -176,9 +176,12 @@ class TradeBottomSheet extends HookConsumerWidget {
       String oType, double limitPrice, double qty) {
     double entryPrice;
     if (oType == 'market') {
+      final rollingVols = ref.read(rollingVolatilityProvider);
+      final currentVol = rollingVols[symbol] ?? 0.50;
       entryPrice = SpreadEngine.fillPrice(
         midPrice: contract.greeks.premium,
         quantity: qty * qtyFactor,
+        realizedVol: currentVol,
       );
     } else {
       entryPrice = limitPrice;
