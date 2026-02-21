@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../features/portfolio_state.dart';
 import '../features/market_state.dart';
 import '../engines/pricing_engine.dart';
+import '../engines/volatility_engine.dart';
 import '../features/risk_state.dart';
 
 class PortfolioScreen extends HookConsumerWidget {
@@ -12,65 +12,133 @@ class PortfolioScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final positions = ref.watch(portfolioProvider);
+    final history = ref.watch(tradeHistoryProvider);
     final marginStatus = ref.watch(marginStatusProvider);
     final prices = ref.watch(pricesProvider).value ?? {};
     final t = ref.watch(tValueProvider).value ?? 0.0;
+    final rollingVols = ref.watch(rollingVolatilityProvider);
+    final realizedPnL = ref.watch(realizedPnLProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Portfolio'), backgroundColor: Colors.transparent),
-      body: Column(
-        children: [
-          _buildStatsHeader(marginStatus.equity, marginStatus.maintenanceMargin),
-          const Divider(color: Colors.white10),
-          Expanded(
-            child: positions.isEmpty 
-              ? const Center(child: Text('No active positions', style: TextStyle(color: Colors.white54)))
-              : ListView.builder(
-                  itemCount: positions.length,
-                  itemBuilder: (context, index) {
-                    final pos = positions[index];
-                    return _buildPositionCard(context, ref, pos, prices, t);
-                  },
-                ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Portfolio'),
+          backgroundColor: Colors.transparent,
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Positions'),
+              Tab(text: 'History'),
+            ],
+            indicatorColor: Color(0xFFF0B90B),
           ),
-        ],
+        ),
+        body: Column(
+          children: [
+            _buildStatsHeader(marginStatus, realizedPnL),
+            const Divider(color: Colors.white10, height: 1),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildPositionsTab(
+                      context, ref, positions, prices, t, rollingVols),
+                  _buildHistoryTab(history),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStatsHeader(double equity, double margin) {
+  Widget _buildStatsHeader(MarginStatus status, double realizedPnL) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Column(
-            children: [
-              const Text('Equity', style: TextStyle(color: Colors.white54, fontSize: 12)),
-              Text('\$${equity.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFF0B90B))),
-            ],
+          _statColumn('Equity', '\$${status.equity.toStringAsFixed(2)}',
+              const Color(0xFFF0B90B)),
+          _statColumn('Margin', '\$${status.maintenanceMargin.toStringAsFixed(2)}',
+              Colors.white),
+          _statColumn(
+            'Unrealized',
+            '${status.unrealizedPnL >= 0 ? "+" : ""}\$${status.unrealizedPnL.toStringAsFixed(2)}',
+            status.unrealizedPnL >= 0 ? Colors.greenAccent : Colors.redAccent,
           ),
-          Column(
-            children: [
-              const Text('Margin Used', style: TextStyle(color: Colors.white54, fontSize: 12)),
-              Text('\$${margin.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-            ],
+          _statColumn(
+            'Realized',
+            '${realizedPnL >= 0 ? "+" : ""}\$${realizedPnL.toStringAsFixed(2)}',
+            realizedPnL >= 0 ? Colors.greenAccent : Colors.redAccent,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPositionCard(BuildContext context, WidgetRef ref, Position pos, Map<String, double> prices, double t) {
+  Widget _statColumn(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label,
+            style: const TextStyle(color: Colors.white54, fontSize: 10)),
+        const SizedBox(height: 4),
+        Text(value,
+            style: TextStyle(
+                fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+
+  Widget _buildPositionsTab(
+    BuildContext context,
+    WidgetRef ref,
+    List<Position> positions,
+    Map<String, double> prices,
+    double t,
+    Map<String, double> rollingVols,
+  ) {
+    if (positions.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.account_balance_wallet_outlined,
+                size: 64, color: Colors.white24),
+            SizedBox(height: 16),
+            Text('No active positions',
+                style: TextStyle(color: Colors.white54)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: positions.length,
+      itemBuilder: (context, index) {
+        final pos = positions[index];
+        return _buildPositionCard(
+            context, ref, pos, prices, t, rollingVols);
+      },
+    );
+  }
+
+  Widget _buildPositionCard(
+    BuildContext context,
+    WidgetRef ref,
+    Position pos,
+    Map<String, double> prices,
+    double t,
+    Map<String, double> rollingVols,
+  ) {
     final spot = prices[pos.symbol] ?? 0.0;
-    
-    // Calculate current premium for PnL
+    final baseVol = rollingVols[pos.symbol] ?? 0.50;
+    final iv = VolatilityEngine(baseVolatility: baseVol).calculateIV(
+      S: spot, K: pos.strike, T: t,
+    );
+
     final currentRes = BlackScholesEngine.calculate(
-      S: spot,
-      K: pos.strike,
-      T: t,
-      r: 0.05,
-      v: 0.50, 
+      S: spot, K: pos.strike, T: t, r: 0.05, v: iv,
       type: pos.type == 'call' ? OptionType.call : OptionType.put,
     );
 
@@ -78,7 +146,7 @@ class PortfolioScreen extends HookConsumerWidget {
     final isProfit = pnl >= 0;
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -86,51 +154,142 @@ class PortfolioScreen extends HookConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text('${pos.symbol} ${pos.strike.toStringAsFixed(0)} ${pos.type.toUpperCase()}', 
-                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        if (!pos.isFilled)
-                          Container(
-                            margin: const EdgeInsets.only(left: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(4)),
-                            child: const Text('LIMIT', style: TextStyle(fontSize: 10, color: Colors.black)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '${pos.symbol} ${pos.strike.toStringAsFixed(0)} ${pos.type.toUpperCase()}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14),
                           ),
-                      ],
-                    ),
-                    Text('${pos.quantity > 0 ? "LONG" : "SHORT"} ${pos.quantity.abs()} Contracts @ \$${pos.entryPrice.toStringAsFixed(2)}', 
-                         style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                  ],
+                          if (!pos.isFilled)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.orange,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('LIMIT',
+                                  style: TextStyle(
+                                      fontSize: 9, color: Colors.black)),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${pos.quantity > 0 ? "LONG" : "SHORT"} ${pos.quantity.abs()} @ \$${pos.entryPrice.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 11),
+                      ),
+                      if (pos.isFilled)
+                        Text(
+                          'Mark: \$${currentRes.premium.toStringAsFixed(2)}  IV: ${(iv * 100).toStringAsFixed(1)}%',
+                          style: const TextStyle(
+                              color: Colors.white38, fontSize: 10),
+                        ),
+                    ],
+                  ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      pos.isFilled ? '${isProfit ? "+" : ""}\$${pnl.toStringAsFixed(2)}' : 'PENDING',
+                      pos.isFilled
+                          ? '${isProfit ? "+" : ""}\$${pnl.toStringAsFixed(2)}'
+                          : 'PENDING',
                       style: TextStyle(
-                        color: pos.isFilled ? (isProfit ? Colors.greenAccent : Colors.redAccent) : Colors.orange, 
-                        fontWeight: FontWeight.bold, 
-                        fontSize: 18
+                        color: pos.isFilled
+                            ? (isProfit
+                                ? Colors.greenAccent
+                                : Colors.redAccent)
+                            : Colors.orange,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
-                    if (pos.isFilled) const Text('Unrealized PnL', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                    if (pos.isFilled)
+                      const Text('Unrealized',
+                          style: TextStyle(
+                              color: Colors.white54, fontSize: 9)),
                   ],
-                )
+                ),
               ],
             ),
             const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: () => ref.read(portfolioProvider.notifier).closePosition(pos.id),
-              style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 40)),
-              child: Text(pos.isFilled ? 'CLOSE POSITION' : 'CANCEL ORDER'),
-            )
+              onPressed: () {
+                ref.read(portfolioProvider.notifier).closePosition(
+                  pos.id,
+                  exitPrice: pos.isFilled ? currentRes.premium : 0.0,
+                );
+                if (pos.isFilled) {
+                  final newBalance =
+                      ref.read(balanceProvider) + pnl;
+                  ref
+                      .read(balanceProvider.notifier)
+                      .updateBalance(newBalance);
+                }
+                ref.read(tradeHistoryProvider.notifier).refresh();
+              },
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 36),
+              ),
+              child:
+                  Text(pos.isFilled ? 'CLOSE POSITION' : 'CANCEL ORDER'),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildHistoryTab(List<TradeRecord> history) {
+    if (history.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history, size: 64, color: Colors.white24),
+            SizedBox(height: 16),
+            Text('No trade history yet',
+                style: TextStyle(color: Colors.white54)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: history.length,
+      itemBuilder: (context, index) {
+        final trade = history[index];
+        final isProfit = trade.realizedPnL >= 0;
+
+        return ListTile(
+          dense: true,
+          title: Text(
+            '${trade.symbol} ${trade.strike.toStringAsFixed(0)} ${trade.type.toUpperCase()}',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          subtitle: Text(
+            '${trade.quantity > 0 ? "LONG" : "SHORT"} ${trade.quantity.abs()} | '
+            'Entry: \$${trade.entryPrice.toStringAsFixed(2)} → Exit: \$${trade.exitPrice.toStringAsFixed(2)}',
+            style: const TextStyle(color: Colors.white38, fontSize: 10),
+          ),
+          trailing: Text(
+            '${isProfit ? "+" : ""}\$${trade.realizedPnL.toStringAsFixed(2)}',
+            style: TextStyle(
+              color: isProfit ? Colors.greenAccent : Colors.redAccent,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        );
+      },
     );
   }
 }

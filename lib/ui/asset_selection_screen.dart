@@ -6,45 +6,133 @@ import 'trading_screen.dart';
 class AssetSelectionScreen extends HookConsumerWidget {
   const AssetSelectionScreen({super.key});
 
+  static const _assetIcons = {
+    'BTCUSDT': Icons.currency_bitcoin,
+    'ETHUSDT': Icons.diamond_outlined,
+    'SOLUSDT': Icons.wb_sunny_outlined,
+  };
+
+  static const _assetNames = {
+    'BTCUSDT': 'Bitcoin',
+    'ETHUSDT': 'Ethereum',
+    'SOLUSDT': 'Solana',
+  };
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prices = ref.watch(pricesProvider).value ?? {};
     final assets = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
+    final countdown = ref.watch(timeProvider).getCountdown();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Asset'),
+        title: const Text('Markets'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                const Icon(Icons.access_time, size: 14, color: Colors.white54),
+                const SizedBox(width: 4),
+                Text(countdown,
+                    style: const TextStyle(
+                        fontFamily: 'Courier',
+                        fontSize: 12,
+                        color: Colors.white54)),
+              ],
+            ),
+          ),
+        ],
       ),
       body: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: assets.length,
         itemBuilder: (context, index) {
           final symbol = assets[index];
           final price = prices[symbol] ?? 0.0;
 
           return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: ListTile(
-              title: Text(symbol, style: Theme.of(context).textTheme.titleLarge),
-              trailing: Text(
-                price > 0 ? '\$${price.toStringAsFixed(2)}' : 'Loading...',
-                style: const TextStyle(
-                  color: Color(0xFFF0B90B),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
+            margin:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
               onTap: () {
                 ref.read(selectedAssetProvider.notifier).state = symbol;
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const TradingScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const TradingScreen()),
                 );
               },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0B90B).withAlpha(25),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        _assetIcons[symbol] ?? Icons.monetization_on,
+                        color: const Color(0xFFF0B90B),
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(symbol.replaceAll('USDT', ''),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18)),
+                          Text(_assetNames[symbol] ?? symbol,
+                              style: const TextStyle(
+                                  color: Colors.white54, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          price > 0
+                              ? '\$${_formatPrice(price)}'
+                              : 'Loading...',
+                          style: const TextStyle(
+                            color: Color(0xFFF0B90B),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text('Daily Options',
+                            style: TextStyle(
+                                color: Colors.white38, fontSize: 10)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         },
       ),
     );
+  }
+
+  String _formatPrice(double price) {
+    if (price >= 1000) {
+      return price.toStringAsFixed(2);
+    } else if (price >= 1) {
+      return price.toStringAsFixed(2);
+    } else {
+      return price.toStringAsFixed(4);
+    }
   }
 }

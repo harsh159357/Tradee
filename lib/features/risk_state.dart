@@ -3,15 +3,18 @@ import 'market_state.dart';
 import 'portfolio_state.dart';
 import '../engines/pricing_engine.dart';
 import '../engines/margin_engine.dart';
+import '../engines/volatility_engine.dart';
 
 class MarginStatus {
   final double equity;
   final double maintenanceMargin;
+  final double unrealizedPnL;
   final bool isLiquidated;
 
   MarginStatus({
     required this.equity,
     required this.maintenanceMargin,
+    required this.unrealizedPnL,
     required this.isLiquidated,
   });
 }
@@ -21,6 +24,7 @@ final marginStatusProvider = Provider<MarginStatus>((ref) {
   final positions = ref.watch(portfolioProvider);
   final prices = ref.watch(pricesProvider).value ?? {};
   final t = ref.watch(tValueProvider).value ?? 0.0;
+  final rollingVols = ref.watch(rollingVolatilityProvider);
 
   double totalUnrealizedPnL = 0;
   double totalMarginRequired = 0;
@@ -31,32 +35,23 @@ final marginStatusProvider = Provider<MarginStatus>((ref) {
     final spot = prices[pos.symbol] ?? 0.0;
     if (spot == 0) continue;
 
-    // Use Black-Scholes to get current premium
+    final baseVol = rollingVols[pos.symbol] ?? 0.50;
+    final iv = VolatilityEngine(baseVolatility: baseVol).calculateIV(
+      S: spot, K: pos.strike, T: t,
+    );
+
     final currentRes = BlackScholesEngine.calculate(
-      S: spot,
-      K: pos.strike,
-      T: t,
-      r: 0.05,
-      v: 0.50, // Simplified for now, in a real app would use per-strike IV
+      S: spot, K: pos.strike, T: t, r: 0.05, v: iv,
       type: pos.type == 'call' ? OptionType.call : OptionType.put,
     );
 
-    // Unrealized PnL: (Current Price - Entry Price) * Quantity
     totalUnrealizedPnL += (currentRes.premium - pos.entryPrice) * pos.quantity;
 
-    // Margin Required
     if (pos.quantity > 0) {
-      // Long: Margin = premium paid (already deducted from balance usually, 
-      // but here we keep balance as starting cash and equity = balance + pnl)
       totalMarginRequired += currentRes.premium * pos.quantity;
     } else {
-      // Short: Margin = stress test
       totalMarginRequired += MarginEngine.calculateShortMargin(
-        S: spot,
-        K: pos.strike,
-        T: t,
-        r: 0.05,
-        v: 0.50,
+        S: spot, K: pos.strike, T: t, r: 0.05, v: iv,
         type: pos.type == 'call' ? OptionType.call : OptionType.put,
         quantity: pos.quantity.abs(),
       );
@@ -64,17 +59,38 @@ final marginStatusProvider = Provider<MarginStatus>((ref) {
   }
 
   final equity = balance + totalUnrealizedPnL;
-  final isLiquidated = equity < totalMarginRequired && positions.any((p) => p.isFilled);
-
-  // Auto-liquidation trigger
-  if (isLiquidated) {
-    // In a real execution, we would call a liquidation method on the notifier
-    // But providers should be pure. We'll handle side-effects in a listener.
-  }
+  final hasFilledPositions = positions.any((p) => p.isFilled);
+  final isLiquidated = equity < totalMarginRequired && hasFilledPositions;
 
   return MarginStatus(
     equity: equity,
     maintenanceMargin: totalMarginRequired,
+    unrealizedPnL: totalUnrealizedPnL,
     isLiquidated: isLiquidated,
   );
 });
+
+Map<String, double> calculateExitPrices(
+  List<Position> positions,
+  Map<String, double> prices,
+  double t,
+  Map<String, double> rollingVols,
+) {
+  final exitPrices = <String, double>{};
+  for (final pos in positions) {
+    if (!pos.isFilled) continue;
+    final spot = prices[pos.symbol] ?? 0.0;
+    if (spot == 0) continue;
+
+    final baseVol = rollingVols[pos.symbol] ?? 0.50;
+    final iv = VolatilityEngine(baseVolatility: baseVol).calculateIV(
+      S: spot, K: pos.strike, T: t,
+    );
+    final res = BlackScholesEngine.calculate(
+      S: spot, K: pos.strike, T: t, r: 0.05, v: iv,
+      type: pos.type == 'call' ? OptionType.call : OptionType.put,
+    );
+    exitPrices[pos.id] = res.premium;
+  }
+  return exitPrices;
+}

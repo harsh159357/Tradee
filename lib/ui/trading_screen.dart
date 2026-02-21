@@ -20,14 +20,20 @@ class TradingScreen extends HookConsumerWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(symbol, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text('\$${spot.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, color: Colors.greenAccent)),
+            Text(symbol,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('\$${spot.toStringAsFixed(2)}',
+                style: const TextStyle(
+                    fontSize: 14, color: Colors.greenAccent)),
           ],
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Text(countdown, style: const TextStyle(fontFamily: 'Courier', fontWeight: FontWeight.bold)),
+            child: Text(countdown,
+                style: const TextStyle(
+                    fontFamily: 'Courier', fontWeight: FontWeight.bold)),
           )
         ],
         backgroundColor: Colors.transparent,
@@ -37,7 +43,7 @@ class TradingScreen extends HookConsumerWidget {
           _buildChainHeader(),
           Expanded(
             child: ListView.builder(
-              itemCount: chain.length ~/ 2, // Grouping calls and puts
+              itemCount: chain.length ~/ 2,
               itemBuilder: (context, index) {
                 final call = chain[index * 2];
                 final put = chain[index * 2 + 1];
@@ -55,30 +61,74 @@ class TradingScreen extends HookConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       color: const Color(0xFF1E2329),
       child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(child: Text('CALLS', textAlign: TextAlign.center, style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold))),
-          Expanded(child: Text('STRIKE', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70))),
-          Expanded(child: Text('PUTS', textAlign: TextAlign.center, style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))),
+          Expanded(
+            flex: 3,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Text('Bid', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                Text('CALLS', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+                Text('Ask', style: TextStyle(color: Colors.white38, fontSize: 10)),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text('STRIKE',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 12)),
+          ),
+          Expanded(
+            flex: 3,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Text('Bid', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                Text('PUTS', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+                Text('Ask', style: TextStyle(color: Colors.white38, fontSize: 10)),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildOptionRow(BuildContext context, OptionContract call, OptionContract put, String symbol, double spot) {
+  Widget _buildOptionRow(BuildContext context, OptionContract call,
+      OptionContract put, String symbol, double spot) {
+    final isATM = (call.strike - spot).abs() / spot < 0.015;
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white10)),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isATM ? const Color(0xFF2A2E35) : Colors.transparent,
+        border: const Border(
+            bottom: BorderSide(color: Colors.white10, width: 0.5)),
       ),
       child: Row(
         children: [
           _buildPriceCell(context, call, true, symbol, spot),
           Expanded(
-            child: Text(
-              call.strike.toStringAsFixed(0),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            flex: 2,
+            child: Column(
+              children: [
+                Text(
+                  call.strike.toStringAsFixed(0),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: isATM
+                        ? const Color(0xFFF0B90B)
+                        : Colors.white,
+                  ),
+                ),
+                if (isATM)
+                  const Text('ATM',
+                      style: TextStyle(
+                          fontSize: 8, color: Color(0xFFF0B90B))),
+              ],
             ),
           ),
           _buildPriceCell(context, put, false, symbol, spot),
@@ -87,25 +137,52 @@ class TradingScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildPriceCell(BuildContext context, OptionContract contract, bool isCall, String symbol, double spot) {
+  Widget _buildPriceCell(BuildContext context, OptionContract contract,
+      bool isCall, String symbol, double spot) {
     return Expanded(
+      flex: 3,
       child: InkWell(
         onTap: () => showTradeBottomSheet(context, contract, symbol, spot),
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             Text(
-              '\$${contract.greeks.premium.toStringAsFixed(2)}',
+              contract.spread.bid.toStringAsFixed(2),
               style: TextStyle(
-                color: isCall ? Colors.greenAccent : Colors.redAccent,
-                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: isCall
+                    ? Colors.greenAccent.withAlpha(180)
+                    : Colors.redAccent.withAlpha(180),
               ),
             ),
+            Column(
+              children: [
+                Text(
+                  '\$${contract.greeks.premium.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    color: isCall ? Colors.greenAccent : Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  'Δ${contract.greeks.delta.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: contract.greeks.delta >= 0
+                        ? Colors.greenAccent.withAlpha(150)
+                        : Colors.redAccent.withAlpha(150),
+                  ),
+                ),
+              ],
+            ),
             Text(
-              'Δ ${contract.greeks.delta.toStringAsFixed(2)}',
+              contract.spread.ask.toStringAsFixed(2),
               style: TextStyle(
-                fontSize: 10, 
-                color: contract.greeks.delta >= 0 ? Colors.greenAccent.withOpacity(0.7) : Colors.redAccent.withOpacity(0.7),
-                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                color: isCall
+                    ? Colors.greenAccent.withAlpha(180)
+                    : Colors.redAccent.withAlpha(180),
               ),
             ),
           ],
