@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../core/constants.dart';
 import '../features/portfolio_state.dart';
-import '../features/market_state.dart';
-import '../engines/pricing_engine.dart';
-import '../engines/volatility_engine.dart';
 import '../features/risk_state.dart';
 
 class PortfolioScreen extends HookConsumerWidget {
@@ -15,9 +11,7 @@ class PortfolioScreen extends HookConsumerWidget {
     final positions = ref.watch(portfolioProvider);
     final history = ref.watch(tradeHistoryProvider);
     final marginStatus = ref.watch(marginStatusProvider);
-    final prices = ref.watch(pricesProvider).value ?? {};
-    final t = ref.watch(tValueProvider).value ?? 0.0;
-    final rollingVols = ref.watch(rollingVolatilityProvider);
+    final marks = ref.watch(positionMarksProvider);
     final realizedPnL = ref.watch(realizedPnLProvider);
 
     return DefaultTabController(
@@ -41,8 +35,7 @@ class PortfolioScreen extends HookConsumerWidget {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildPositionsTab(
-                      context, ref, positions, prices, t, rollingVols),
+                  _buildPositionsTab(context, ref, positions, marks),
                   _buildHistoryTab(history),
                 ],
               ),
@@ -110,9 +103,7 @@ class PortfolioScreen extends HookConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     List<Position> positions,
-    Map<String, double> prices,
-    double t,
-    Map<String, double> rollingVols,
+    Map<String, PositionMark> marks,
   ) {
     if (positions.isEmpty) {
       return const Center(
@@ -133,8 +124,7 @@ class PortfolioScreen extends HookConsumerWidget {
       itemCount: positions.length,
       itemBuilder: (context, index) {
         final pos = positions[index];
-        return _buildPositionCard(
-            context, ref, pos, prices, t, rollingVols);
+        return _buildPositionCard(context, ref, pos, marks[pos.id]);
       },
     );
   }
@@ -143,22 +133,9 @@ class PortfolioScreen extends HookConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     Position pos,
-    Map<String, double> prices,
-    double t,
-    Map<String, double> rollingVols,
+    PositionMark? mark,
   ) {
-    final spot = prices[pos.symbol] ?? 0.0;
-    final baseVol = rollingVols[pos.symbol] ?? AppConstants.defaultBaseVolatility;
-    final iv = VolatilityEngine(baseVolatility: baseVol).calculateIV(
-      S: spot, K: pos.strike, T: t,
-    );
-
-    final currentRes = BlackScholesEngine.calculate(
-      S: spot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
-      type: pos.type == 'call' ? OptionType.call : OptionType.put,
-    );
-
-    final pnl = (currentRes.premium - pos.entryPrice) * pos.quantity;
+    final pnl = mark?.pnl ?? 0.0;
     final isProfit = pnl >= 0;
 
     return Card(
@@ -202,9 +179,9 @@ class PortfolioScreen extends HookConsumerWidget {
                         style: const TextStyle(
                             color: Colors.white54, fontSize: 11),
                       ),
-                      if (pos.isFilled)
+                      if (pos.isFilled && mark != null)
                         Text(
-                          'Mark: \$${currentRes.premium.toStringAsFixed(2)}  IV: ${(iv * 100).toStringAsFixed(1)}%',
+                          'Mark: \$${mark.premium.toStringAsFixed(2)}  IV: ${(mark.iv * 100).toStringAsFixed(1)}%',
                           style: const TextStyle(
                               color: Colors.white38, fontSize: 10),
                         ),
@@ -239,9 +216,10 @@ class PortfolioScreen extends HookConsumerWidget {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: () {
+                final exitPrice = pos.isFilled ? (mark?.premium ?? 0.0) : 0.0;
                 ref.read(portfolioProvider.notifier).closePosition(
                   pos.id,
-                  exitPrice: pos.isFilled ? currentRes.premium : 0.0,
+                  exitPrice: exitPrice,
                 );
                 final currentBalance = ref.read(balanceProvider);
                 if (pos.isFilled) {

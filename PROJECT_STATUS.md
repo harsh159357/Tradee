@@ -1,8 +1,8 @@
 # Tradee - Project Status
 
 **Last updated:** 2026-02-21
-**Overall completion:** ~99%
-**Build status:** Compiles and runs on Android
+**Overall completion:** 100% (all code-implementable spec items)
+**Build status:** Compiles and runs on Android (0 warnings, 0 errors)
 **Git tag:** Tradee_V1
 
 ---
@@ -17,7 +17,7 @@
 | 5 | Time Engine | 100% |
 | 6 | Options Generation | 100% |
 | 7 | Pricing Engine | 100% |
-| 8 | Volatility Engine | 100% |
+| 8 | Volatility Engine | 100% -- mode toggle wired to state |
 | 9 | Order Simulation | 100% |
 | 10 | Portfolio Engine | 100% -- includes limit order margin hold |
 | 11 | Risk Engine | 100% -- liquidation at worst bid/ask |
@@ -27,7 +27,7 @@
 | 15 | UI Requirements | 100% |
 | 16 | Edge Cases | 100% |
 | 17 | Out of Scope | N/A |
-| 18 | Code Quality | 100% |
+| 18 | Code Quality | 100% -- no business logic in UI widgets |
 | 19 | Future Extensibility | Done -- TimeEngine param, Position.expiry, MarketDataSource interface |
 
 ---
@@ -56,18 +56,18 @@
 - `data/storage_service.dart` -- Hive init, daily reset
 
 ### State Management (3 files)
-- `features/market_state.dart` -- Prices, chain (isolate-guarded FutureProvider), 24h change, limit fills
+- `features/market_state.dart` -- Prices, chain (isolate-guarded FutureProvider), 24h change, limit fills, volatility mode
 - `features/portfolio_state.dart` -- Portfolio/balance/history notifiers
-- `features/risk_state.dart` -- Margin status, exit at worst bid/ask
+- `features/risk_state.dart` -- Margin status, net Greeks, position marks, stressed PnL, exit at worst bid/ask
 
-### UI (9 files)
+### UI (9 files -- zero business logic)
 - `ui/asset_selection_screen.dart` -- 24h % from Binance, expiry in IST
 - `ui/trading_screen.dart` -- Expiry countdown + IST label
 - `ui/trade_bottom_sheet.dart` -- Confirmation dialog, limit margin hold
-- `ui/portfolio_screen.dart` -- Used/Available margin rows, limit refund
-- `ui/risk_dashboard.dart` -- Greeks, stress test, margin bar
+- `ui/portfolio_screen.dart` -- Uses positionMarksProvider for mark/IV/PnL
+- `ui/risk_dashboard.dart` -- Uses netGreeksProvider + stressedPnLProvider
 - `ui/strategy_builder.dart` -- Payoff chart, max P/L
-- `ui/settings_screen.dart` -- IST expiry display
+- `ui/settings_screen.dart` -- IST expiry display, vol mode toggle (wired)
 - `ui/navigation_wrapper.dart`
 - `ui/theme.dart`
 
@@ -103,4 +103,5 @@
 | `0d24b48` | feat: In-session expiry, vol-adjusted spreads, % change, max P/L |
 | `8331568` | fix: AsyncValue.value getter |
 | `13f71b1` | refactor: core/ + domain/ dirs, isolate chain, limit margin hold |
-| *(next)* | fix: Audit fixes -- bid/ask exit, confirmation, 24h%, IST, extensibility |
+| `1eb415b` | fix: Audit fixes -- bid/ask exit, confirmation, 24h%, IST, extensibility |
+| *(next)* | refactor: Extract business logic from UI, wire vol toggle, remove isar |

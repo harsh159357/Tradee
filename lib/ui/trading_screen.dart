@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../features/market_state.dart';
-import '../engines/pricing_engine.dart';
 import 'trade_bottom_sheet.dart';
 
 class TradingScreen extends HookConsumerWidget {

@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../core/constants.dart';
 import '../features/portfolio_state.dart';
+import '../features/market_state.dart';
 import '../data/storage_service.dart';
-
-final volatilityModeProvider = StateProvider<String>((ref) {
-  final box = StorageService.getBox(StorageService.boxSettings);
-  return box.get('volatility_mode', defaultValue: 'rolling') as String;
-});
 
 class SettingsScreen extends HookConsumerWidget {
   const SettingsScreen({super.key});

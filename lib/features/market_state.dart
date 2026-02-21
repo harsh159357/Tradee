@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../core/constants.dart';
 import '../data/market_data_service.dart';
+import '../data/storage_service.dart';
 import '../domain/option_contract.dart';
 import '../domain/price_point.dart';
 import '../engines/pricing_engine.dart';
@@ -47,10 +48,23 @@ final priceHistoryProvider = StreamProvider<Map<String, List<PricePoint>>>((ref)
   return service.historyStream;
 });
 
+final volatilityModeProvider = StateProvider<String>((ref) {
+  final box = StorageService.getBox(StorageService.boxSettings);
+  return box.get('volatility_mode', defaultValue: 'rolling') as String;
+});
+
 final rollingVolatilityProvider = Provider<Map<String, double>>((ref) {
+  final mode = ref.watch(volatilityModeProvider);
+
+  if (mode == 'fixed') {
+    return {
+      for (final symbol in AppConstants.supportedAssets)
+        symbol: AppConstants.defaultBaseVolatility,
+    };
+  }
+
   final history = ref.watch(priceHistoryProvider).value ?? {};
   final result = <String, double>{};
-
   for (final symbol in history.keys) {
     result[symbol] = VolatilityEngine.calculateRealized(history[symbol]!);
   }

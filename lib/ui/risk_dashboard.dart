@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../core/constants.dart';
 import '../features/portfolio_state.dart';
-import '../features/market_state.dart';
-import '../engines/pricing_engine.dart';
-import '../engines/volatility_engine.dart';
 import '../features/risk_state.dart';
 
 class RiskDashboard extends HookConsumerWidget {
@@ -13,46 +9,11 @@ class RiskDashboard extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final positions = ref.watch(portfolioProvider);
-    final prices = ref.watch(pricesProvider).value ?? {};
-    final t = ref.watch(tValueProvider).value ?? 0.0;
+    final greeks = ref.watch(netGreeksProvider);
     final marginStatus = ref.watch(marginStatusProvider);
-    final rollingVols = ref.watch(rollingVolatilityProvider);
+    final positions = ref.watch(portfolioProvider);
     final stressShift = useState(0.0);
-
-    double netDelta = 0, netGamma = 0, netVega = 0, netTheta = 0;
-    double stressedPnL = 0;
-
-    for (final pos in positions) {
-      if (!pos.isFilled) continue;
-      final spot = prices[pos.symbol] ?? 0.0;
-      if (spot == 0) continue;
-
-      final baseVol = rollingVols[pos.symbol] ?? AppConstants.defaultBaseVolatility;
-      final iv = VolatilityEngine(baseVolatility: baseVol).calculateIV(
-        S: spot, K: pos.strike, T: t,
-      );
-
-      final res = BlackScholesEngine.calculate(
-        S: spot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
-        type: pos.type == 'call' ? OptionType.call : OptionType.put,
-      );
-
-      netDelta += res.delta * pos.quantity;
-      netGamma += res.gamma * pos.quantity;
-      netVega += res.vega * pos.quantity;
-      netTheta += res.theta * pos.quantity;
-
-      if (stressShift.value != 0) {
-        final stressedSpot = spot * (1 + stressShift.value / 100);
-        final stressedRes = BlackScholesEngine.calculate(
-          S: stressedSpot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
-          type: pos.type == 'call' ? OptionType.call : OptionType.put,
-        );
-        stressedPnL +=
-            (stressedRes.premium - pos.entryPrice) * pos.quantity;
-      }
-    }
+    final stressedPnL = ref.watch(stressedPnLProvider(stressShift.value));
 
     return Scaffold(
       appBar: AppBar(
@@ -81,13 +42,13 @@ class RiskDashboard extends HookConsumerWidget {
               ),
             ),
           const SizedBox(height: 8),
-          _buildGreekCard('Net Delta (Δ)', netDelta,
+          _buildGreekCard('Net Delta (Δ)', greeks.delta,
               'Price sensitivity per \$1 move'),
-          _buildGreekCard('Net Gamma (Γ)', netGamma,
+          _buildGreekCard('Net Gamma (Γ)', greeks.gamma,
               'Delta change rate'),
-          _buildGreekCard('Net Vega (ν)', netVega,
+          _buildGreekCard('Net Vega (ν)', greeks.vega,
               'Sensitivity to 1% vol change'),
-          _buildGreekCard('Net Theta (Θ)', netTheta,
+          _buildGreekCard('Net Theta (Θ)', greeks.theta,
               'Time decay per day'),
           const SizedBox(height: 24),
           _buildStressTestCard(stressShift, stressedPnL, positions),
