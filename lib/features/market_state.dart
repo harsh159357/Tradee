@@ -75,24 +75,45 @@ final rollingVolatilityProvider = Provider<Map<String, double>>((ref) {
   return result;
 });
 
-final optionsChainProvider = FutureProvider<List<OptionContract>>((ref) async {
-  final prices = ref.watch(pricesProvider).value;
+/// Quantized spot price: only changes when the raw price moves by > 0.1%.
+/// Prevents the chain from recomputing on every tiny WebSocket tick.
+final _lastQuantizedSpot = <String, double>{};
+
+final quantizedSpotProvider = Provider<double>((ref) {
   final symbol = ref.watch(selectedAssetProvider);
+  final prices = ref.watch(pricesProvider).value ?? {};
+  final rawSpot = prices[symbol] ?? 0.0;
+  final lastSpot = _lastQuantizedSpot[symbol] ?? 0.0;
+
+  if (lastSpot == 0 || rawSpot == 0) {
+    _lastQuantizedSpot[symbol] = rawSpot;
+    return rawSpot;
+  }
+
+  final pctChange = (rawSpot - lastSpot).abs() / lastSpot;
+  if (pctChange > 0.001) {
+    _lastQuantizedSpot[symbol] = rawSpot;
+    return rawSpot;
+  }
+  return lastSpot;
+});
+
+final optionsChainProvider = FutureProvider<List<OptionContract>>((ref) async {
+  final symbol = ref.watch(selectedAssetProvider);
+  final spot = ref.watch(quantizedSpotProvider);
   final t = ref.watch(tValueProvider).value ?? 0.0;
   final rollingVols = ref.watch(rollingVolatilityProvider);
   final baseVol = rollingVols[symbol] ?? AppConstants.defaultBaseVolatility;
 
-  if (prices == null || prices[symbol] == null || prices[symbol] == 0.0) {
-    return [];
-  }
+  if (spot == 0.0) return [];
 
-  final spot = prices[symbol]!;
-
-  _checkLimitOrderFills(ref, spot, t, baseVol);
+  // Check limit fills using live (unquantized) spot
+  final livePrices = ref.read(pricesProvider).value ?? {};
+  final liveSpot = livePrices[symbol] ?? spot;
+  _checkLimitOrderFills(ref, liveSpot, t, baseVol);
 
   final chainKey = '$symbol:${spot.toStringAsFixed(2)}';
 
-  // Reuse in-flight computation only if it matches the current inputs.
   if (_activeChainComputation != null &&
       !_activeChainComputation!.isCompleted &&
       _activeChainKey == chainKey) {

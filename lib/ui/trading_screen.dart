@@ -60,37 +60,49 @@ class TradingScreen extends HookConsumerWidget {
       body: Column(
         children: [
           _buildChainHeader(context),
-          Expanded(
-            child: chainAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-                    const SizedBox(height: 12),
-                    Text('Failed to load chain: $e',
-                        style: const TextStyle(color: Colors.white54)),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: () => ref.invalidate(optionsChainProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-              data: (chain) => ListView.builder(
-                itemCount: chain.length ~/ 2,
-                itemBuilder: (context, index) {
-                  final call = chain[index * 2];
-                  final put = chain[index * 2 + 1];
-                  return _buildOptionRow(context, call, put, symbol, spot);
-                },
-              ),
-            ),
-          ),
+          Expanded(child: _buildChainBody(context, ref, chainAsync, symbol, spot)),
         ],
       ),
+    );
+  }
+
+  Widget _buildChainBody(BuildContext context, WidgetRef ref,
+      AsyncValue<List<OptionContract>> chainAsync, String symbol, double spot) {
+    final chain = chainAsync.value ?? [];
+
+    // First load -- no data yet
+    if (chain.isEmpty && chainAsync.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Error with no previous data
+    if (chain.isEmpty && chainAsync.hasError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+            const SizedBox(height: 12),
+            Text('Failed to load chain: ${chainAsync.error}',
+                style: const TextStyle(color: Colors.white54)),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () => ref.invalidate(optionsChainProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show chain (keeps old data visible during refresh)
+    return ListView.builder(
+      itemCount: chain.length ~/ 2,
+      itemBuilder: (context, index) {
+        final call = chain[index * 2];
+        final put = chain[index * 2 + 1];
+        return _buildOptionRow(context, call, put, symbol, spot);
+      },
     );
   }
 
