@@ -41,7 +41,7 @@ class _TradeeAppState extends ConsumerState<TradeeApp> {
 
     // Listen for expiry (T hits 0 while app is open)
     ref.listenManual(tValueProvider, (prev, next) {
-      final t = next.valueOrNull;
+      final t = next.value;
       if (t != null && t <= 0 && !_expiryHandled) {
         _expiryHandled = true;
         _handleExpiry();
