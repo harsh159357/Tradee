@@ -132,7 +132,20 @@ class TradeBottomSheet extends HookConsumerWidget {
   }
 
   void _placeOrder(WidgetRef ref, BuildContext context, double qtyFactor, String oType, double limitPrice, double qty) {
-    final entryPrice = oType == 'market' ? contract.greeks.premium : limitPrice;
+    double entryPrice = oType == 'market' ? contract.greeks.premium : limitPrice;
+
+    // Apply Slippage for Market Orders
+    if (oType == 'market') {
+      // 0.1% slippage base + additional for size (e.g., 0.1% per 100 units)
+      final slippagePercent = 0.001 + (qty.abs() / 100.0) * 0.001;
+      if (qtyFactor > 0) {
+        // Buying: price goes up
+        entryPrice *= (1 + slippagePercent);
+      } else {
+        // Selling: price goes down
+        entryPrice *= (1 - slippagePercent);
+      }
+    }
     
     final pos = Position(
       id: DateTime.now().millisecondsSinceEpoch.toString(),

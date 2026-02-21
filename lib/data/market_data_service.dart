@@ -2,6 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+class PricePoint {
+  final double price;
+  final DateTime timestamp;
+
+  PricePoint({required this.price, required this.timestamp});
+}
+
 class MarketDataService {
   WebSocketChannel? _channel;
   final String _baseUrl = "wss://stream.binance.com:9443/ws";
@@ -9,10 +16,19 @@ class MarketDataService {
   final _priceController = StreamController<Map<String, double>>.broadcast();
   Stream<Map<String, double>> get priceStream => _priceController.stream;
 
+  final _historyController = StreamController<Map<String, List<PricePoint>>>.broadcast();
+  Stream<Map<String, List<PricePoint>>> get historyStream => _historyController.stream;
+
   final Map<String, double> _latestPrices = {
     'BTCUSDT': 0.0,
     'ETHUSDT': 0.0,
     'SOLUSDT': 0.0,
+  };
+
+  final Map<String, List<PricePoint>> _priceHistory = {
+    'BTCUSDT': [],
+    'ETHUSDT': [],
+    'SOLUSDT': [],
   };
 
   void connect() {
@@ -29,6 +45,14 @@ class MarketDataService {
         
         _latestPrices[symbol] = price;
         _priceController.add(Map.from(_latestPrices));
+
+        // Update history
+        final now = DateTime.now();
+        _priceHistory[symbol]!.add(PricePoint(price: price, timestamp: now));
+        
+        // Prune older than 1 hour
+        _priceHistory[symbol]!.removeWhere((p) => now.difference(p.timestamp).inHours >= 1);
+        _historyController.add(Map.from(_priceHistory));
       },
       onError: (e) {
         print("WebSocket Error: $e");
@@ -49,7 +73,6 @@ class MarketDataService {
   void dispose() {
     _channel?.sink.close();
     _priceController.close();
+    _historyController.close();
   }
-
-  double? getLatestPrice(String symbol) => _latestPrices[symbol];
 }

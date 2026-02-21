@@ -10,6 +10,9 @@ class StrategyBuilderScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final legs = useState<List<OptionContract>>([]);
+    final prices = ref.watch(pricesProvider).value ?? {};
+    final symbol = ref.watch(selectedAssetProvider);
+    final spot = prices[symbol] ?? 0.0;
     
     double totalDelta = 0;
     double totalGamma = 0;
@@ -39,6 +42,25 @@ class StrategyBuilderScreen extends HookConsumerWidget {
       body: Column(
         children: [
           _buildSummaryHeader(totalPremium, totalDelta, totalGamma, totalVega, totalTheta),
+          if (legs.value.isNotEmpty)
+            Container(
+              height: 220,
+              width: double.infinity,
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E2329),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CustomPaint(
+                  painter: PayoffChartPainter(
+                    legs: legs.value,
+                    currentSpot: spot,
+                  ),
+                ),
+              ),
+            ),
           Expanded(
             child: legs.value.isEmpty
               ? _buildEmptyState()
@@ -145,4 +167,111 @@ class StrategyBuilderScreen extends HookConsumerWidget {
       ),
     );
   }
+}
+
+class PayoffChartPainter extends CustomPainter {
+  final List<OptionContract> legs;
+  final double currentSpot;
+
+  PayoffChartPainter({required this.legs, required this.currentSpot});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (currentSpot == 0) return;
+
+    final paintLine = Paint()
+      ..color = const Color(0xFFF0B90B)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    final paintFill = Paint()
+      ..style = PaintingStyle.fill;
+
+    final paintAxis = Paint()
+      ..color = Colors.white24
+      ..strokeWidth = 1;
+
+    // Range: +/- 10% of current spot
+    final startPrice = currentSpot * 0.90;
+    final endPrice = currentSpot * 1.10;
+    final priceRange = endPrice - startPrice;
+
+    double maxPnL = -double.infinity;
+    double minPnL = double.infinity;
+
+    final points = <Offset>[];
+    final steps = 50;
+    
+    for (int i = 0; i <= steps; i++) {
+      final s = startPrice + (priceRange * i / steps);
+      double totalPnL = 0;
+      for (final leg in legs) {
+        // PnL at expiry: intrinsic value - premium paid
+        final intrinsic = leg.type == OptionType.call 
+            ? (s > leg.strike ? s - leg.strike : 0.0)
+            : (leg.strike > s ? leg.strike - s : 0.0);
+        totalPnL += intrinsic - leg.greeks.premium;
+      }
+      if (totalPnL > maxPnL) maxPnL = totalPnL;
+      if (totalPnL < minPnL) minPnL = totalPnL;
+      points.add(Offset(s, totalPnL));
+    }
+
+    // Normalize Y axis
+    final yBound = [maxPnL.abs(), minPnL.abs()].reduce((a, b) => a > b ? a : b);
+    final yMax = yBound > 0 ? yBound * 1.2 : 100.0;
+
+    double getY(double pnl) {
+      // 0 pnl is at size.height / 2
+      return (size.height / 2) - (pnl / yMax * (size.height / 2));
+    }
+
+    double getX(double price) {
+      return (price - startPrice) / priceRange * size.width;
+    }
+
+    // Draw grid
+    canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), paintAxis);
+    canvas.drawLine(Offset(getX(currentSpot), 0), Offset(getX(currentSpot), size.height), paintAxis..color = Colors.blue.withOpacity(0.3));
+
+    final path = Path();
+    for (int i = 0; i < points.length; i++) {
+      final x = getX(points[i].dx);
+      final y = getY(points[i].dy);
+      if (i == 0) path.moveTo(x, y);
+      else path.lineTo(x, y);
+    }
+
+    // Draw fill area below/above 0
+    final fillPath = Path.from(path);
+    fillPath.lineTo(getX(endPrice), size.height / 2);
+    fillPath.lineTo(getX(startPrice), size.height / 2);
+    fillPath.close();
+    
+    paintFill.shader = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [Colors.green.withOpacity(0.2), Colors.red.withOpacity(0.2)],
+    ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    
+    canvas.drawPath(fillPath, paintFill);
+    canvas.drawPath(path, paintLine);
+
+    // Current price dot
+    canvas.drawCircle(Offset(getX(currentSpot), getY(_calculatePnLAt(currentSpot))), 4, Paint()..color = Colors.white);
+  }
+
+  double _calculatePnLAt(double s) {
+    double totalPnL = 0;
+    for (final leg in legs) {
+      final intrinsic = leg.type == OptionType.call 
+          ? (s > leg.strike ? s - leg.strike : 0.0)
+          : (leg.strike > s ? leg.strike - s : 0.0);
+      totalPnL += intrinsic - leg.greeks.premium;
+    }
+    return totalPnL;
+  }
+
+  @override
+  bool shouldRepaint(covariant PayoffChartPainter oldDelegate) => true;
 }

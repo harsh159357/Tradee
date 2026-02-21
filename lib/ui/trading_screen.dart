@@ -102,7 +102,11 @@ class TradingScreen extends HookConsumerWidget {
             ),
             Text(
               'Δ ${contract.greeks.delta.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 10, color: Colors.white54),
+              style: TextStyle(
+                fontSize: 10, 
+                color: contract.greeks.delta >= 0 ? Colors.greenAccent.withOpacity(0.7) : Colors.redAccent.withOpacity(0.7),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

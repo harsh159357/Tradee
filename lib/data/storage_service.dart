@@ -14,8 +14,28 @@ class StorageService {
     await Hive.openBox(boxHistory);
     await Hive.openBox(boxSettings);
     
-    // Initialize default balance if empty
+    // Auto-Reset Check
+    final settingsBox = Hive.box(boxSettings);
     final accountBox = Hive.box(boxAccount);
+    final positionsBox = Hive.box(boxPositions);
+    
+    final now = DateTime.now().toUtc();
+    final todayExpiry = DateTime.utc(now.year, now.month, now.day, 23, 59, 59);
+    
+    final lastExpiryStr = settingsBox.get('last_expiry');
+    if (lastExpiryStr != null) {
+      final lastExpiry = DateTime.parse(lastExpiryStr);
+      if (now.isAfter(lastExpiry)) {
+        // Daily reset triggered
+        await positionsBox.clear();
+        await accountBox.put('balance', 100000.0);
+      }
+    }
+    
+    // Always update to today's expiry for next launch
+    await settingsBox.put('last_expiry', todayExpiry.toIso8601String());
+
+    // Initialize default balance if empty
     if (accountBox.get('balance') == null) {
       await accountBox.put('balance', 100000.0);
     }

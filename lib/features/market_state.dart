@@ -46,11 +46,28 @@ class OptionContract {
   });
 }
 
+final priceHistoryProvider = StreamProvider<Map<String, List<PricePoint>>>((ref) {
+  final service = ref.watch(marketDataProvider);
+  return service.historyStream;
+});
+
+final rollingVolatilityProvider = Provider<Map<String, double>>((ref) {
+  final history = ref.watch(priceHistoryProvider).value ?? {};
+  final result = <String, double>{};
+  
+  for (final symbol in history.keys) {
+    result[symbol] = VolatilityEngine.calculateRealized(history[symbol]!);
+  }
+  return result;
+});
+
 // Options Chain Provider
 final optionsChainProvider = Provider<List<OptionContract>>((ref) {
   final prices = ref.watch(pricesProvider).value;
   final symbol = ref.watch(selectedAssetProvider);
   final t = ref.watch(tValueProvider).value ?? 0.0;
+  final rollingVols = ref.watch(rollingVolatilityProvider);
+  final baseVol = rollingVols[symbol] ?? 0.50;
   
   if (prices == null || prices[symbol] == null || prices[symbol] == 0.0) return [];
 
@@ -61,7 +78,7 @@ final optionsChainProvider = Provider<List<OptionContract>>((ref) {
   for (final pos in portfolio) {
     if (!pos.isFilled && pos.orderType == 'limit') {
       // Basic fill logic: if market premium cross limit price
-      final currentIV = VolatilityEngine().calculateIV(S: spot, K: pos.strike, T: t);
+      final currentIV = VolatilityEngine(baseVolatility: baseVol).calculateIV(S: spot, K: pos.strike, T: t);
       final currentRes = BlackScholesEngine.calculate(
         S: spot,
         K: pos.strike,
@@ -72,7 +89,6 @@ final optionsChainProvider = Provider<List<OptionContract>>((ref) {
       );
 
       // If market premium <= limit price (for buys) or >= limit price (for sells)
-      // Since we simplify, let's say if market premium hits the limit price, it fills.
       if (pos.quantity > 0 && currentRes.premium <= pos.entryPrice) {
          ref.read(portfolioProvider.notifier).updatePosition(pos.copyWith(isFilled: true));
       } else if (pos.quantity < 0 && currentRes.premium >= pos.entryPrice) {
@@ -81,7 +97,7 @@ final optionsChainProvider = Provider<List<OptionContract>>((ref) {
     }
   }
 
-  final volEngine = VolatilityEngine();
+  final volEngine = VolatilityEngine(baseVolatility: baseVol);
   // ... rest of the option chain generation logic
   
   // Generate strikes: S ±1%, ±2%, ±3%, ±5%
