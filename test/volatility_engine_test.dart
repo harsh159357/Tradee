@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradee/engines/volatility_engine.dart';
-import 'package:tradee/data/market_data_service.dart';
+import 'package:tradee/domain/price_point.dart';
 
 void main() {
   group('Volatility Engine - Skew', () {

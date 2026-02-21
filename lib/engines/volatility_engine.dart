@@ -1,10 +1,11 @@
-import '../data/market_data_service.dart';
+import '../core/constants.dart';
+import '../domain/price_point.dart';
 import 'dart:math' as math;
 
 class VolatilityEngine {
   final double baseVolatility;
   
-  VolatilityEngine({this.baseVolatility = 0.50}); // Default 50% IV
+  VolatilityEngine({this.baseVolatility = AppConstants.defaultBaseVolatility});
 
   double calculateIV({
     required double S,
@@ -26,7 +27,7 @@ class VolatilityEngine {
   }
 
   static double calculateRealized(List<PricePoint> points) {
-    if (points.length < 5) return 0.50;
+    if (points.length < 5) return AppConstants.defaultBaseVolatility;
     
     final returns = <double>[];
     for (var i = 1; i < points.length; i++) {
@@ -35,15 +36,14 @@ class VolatilityEngine {
       }
     }
     
-    if (returns.isEmpty) return 0.50;
+    if (returns.isEmpty) return AppConstants.defaultBaseVolatility;
 
     final mean = returns.reduce((a, b) => a + b) / returns.length;
     final variance = returns.map((x) => math.pow(x - mean, 2)).reduce((a, b) => a + b) / (returns.length - 1);
     final stdDev = math.sqrt(variance);
     
-    // Annualize (dynamic based on average interval)
     final totalSecs = points.last.timestamp.difference(points.first.timestamp).inSeconds;
-    if (totalSecs == 0) return 0.50;
+    if (totalSecs == 0) return AppConstants.defaultBaseVolatility;
     
     final intervalsPerYear = (365 * 24 * 60 * 60) / (totalSecs / (points.length - 1));
     return stdDev * math.sqrt(intervalsPerYear);

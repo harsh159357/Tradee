@@ -200,7 +200,7 @@ class StrategyBuilderScreen extends HookConsumerWidget {
   }
 
   void _showAddLegSelector(BuildContext context, WidgetRef ref, ValueNotifier<List<OptionContract>> legs) {
-    final chain = ref.read(optionsChainProvider);
+    final chain = ref.read(optionsChainProvider).value ?? [];
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1E2329),

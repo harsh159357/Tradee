@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../core/constants.dart';
 import '../features/portfolio_state.dart';
 import '../features/market_state.dart';
 import '../engines/pricing_engine.dart';
@@ -27,13 +28,13 @@ class RiskDashboard extends HookConsumerWidget {
       final spot = prices[pos.symbol] ?? 0.0;
       if (spot == 0) continue;
 
-      final baseVol = rollingVols[pos.symbol] ?? 0.50;
+      final baseVol = rollingVols[pos.symbol] ?? AppConstants.defaultBaseVolatility;
       final iv = VolatilityEngine(baseVolatility: baseVol).calculateIV(
         S: spot, K: pos.strike, T: t,
       );
 
       final res = BlackScholesEngine.calculate(
-        S: spot, K: pos.strike, T: t, r: 0.05, v: iv,
+        S: spot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
         type: pos.type == 'call' ? OptionType.call : OptionType.put,
       );
 
@@ -45,7 +46,7 @@ class RiskDashboard extends HookConsumerWidget {
       if (stressShift.value != 0) {
         final stressedSpot = spot * (1 + stressShift.value / 100);
         final stressedRes = BlackScholesEngine.calculate(
-          S: stressedSpot, K: pos.strike, T: t, r: 0.05, v: iv,
+          S: stressedSpot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
           type: pos.type == 'call' ? OptionType.call : OptionType.put,
         );
         stressedPnL +=

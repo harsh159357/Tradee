@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import '../core/constants.dart';
 
 class SpreadResult {
   final double mid;
@@ -15,22 +16,17 @@ class SpreadResult {
 }
 
 class SpreadEngine {
-  static const double _minimumTick = 0.01;
-  static const double _baseSpreadPercent = 0.005;
-  static const double _defaultBaseVol = 0.50;
-
   static SpreadResult calculate({
     required double midPrice,
-    double spreadPercent = _baseSpreadPercent,
-    double realizedVol = _defaultBaseVol,
+    double spreadPercent = AppConstants.baseSpreadPercent,
+    double realizedVol = AppConstants.defaultBaseVolatility,
   }) {
-    // Widen spreads under extreme volatility (>2x baseline)
-    final volRatio = realizedVol / _defaultBaseVol;
+    final volRatio = realizedVol / AppConstants.defaultBaseVolatility;
     final volMultiplier = volRatio > 2.0 ? 1.0 + (volRatio - 2.0) * 0.5 : 1.0;
     final adjustedSpread = spreadPercent * volMultiplier;
 
-    final halfSpread = math.max(midPrice * adjustedSpread / 2, _minimumTick);
-    final bid = math.max(midPrice - halfSpread, _minimumTick);
+    final halfSpread = math.max(midPrice * adjustedSpread / 2, AppConstants.minimumTick);
+    final bid = math.max(midPrice - halfSpread, AppConstants.minimumTick);
     final ask = midPrice + halfSpread;
 
     return SpreadResult(
@@ -44,9 +40,9 @@ class SpreadEngine {
   static double fillPrice({
     required double midPrice,
     required double quantity,
-    double spreadPercent = _baseSpreadPercent,
-    double slippagePerUnit = 0.001,
-    double realizedVol = _defaultBaseVol,
+    double spreadPercent = AppConstants.baseSpreadPercent,
+    double slippagePerUnit = AppConstants.slippagePerUnit,
+    double realizedVol = AppConstants.defaultBaseVolatility,
   }) {
     final sr = calculate(
       midPrice: midPrice,
@@ -58,7 +54,7 @@ class SpreadEngine {
     if (quantity > 0) {
       return sr.ask + slippage;
     } else {
-      return math.max(sr.bid - slippage, _minimumTick);
+      return math.max(sr.bid - slippage, AppConstants.minimumTick);
     }
   }
 }

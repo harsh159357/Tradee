@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../core/constants.dart';
 import '../features/portfolio_state.dart';
 import '../data/storage_service.dart';
 
@@ -124,7 +125,7 @@ class SettingsScreen extends HookConsumerWidget {
               await histBox.clear();
               await ref
                   .read(balanceProvider.notifier)
-                  .updateBalance(100000.0);
+                  .updateBalance(AppConstants.initialBalance);
               ref.read(portfolioProvider.notifier).loadPositions();
               ref.read(tradeHistoryProvider.notifier).refresh();
 

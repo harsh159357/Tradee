@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../core/constants.dart';
 import '../features/portfolio_state.dart';
 import '../features/market_state.dart';
 import '../engines/pricing_engine.dart';
@@ -132,13 +133,13 @@ class PortfolioScreen extends HookConsumerWidget {
     Map<String, double> rollingVols,
   ) {
     final spot = prices[pos.symbol] ?? 0.0;
-    final baseVol = rollingVols[pos.symbol] ?? 0.50;
+    final baseVol = rollingVols[pos.symbol] ?? AppConstants.defaultBaseVolatility;
     final iv = VolatilityEngine(baseVolatility: baseVol).calculateIV(
       S: spot, K: pos.strike, T: t,
     );
 
     final currentRes = BlackScholesEngine.calculate(
-      S: spot, K: pos.strike, T: t, r: 0.05, v: iv,
+      S: spot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
       type: pos.type == 'call' ? OptionType.call : OptionType.put,
     );
 
@@ -227,12 +228,16 @@ class PortfolioScreen extends HookConsumerWidget {
                   pos.id,
                   exitPrice: pos.isFilled ? currentRes.premium : 0.0,
                 );
+                final currentBalance = ref.read(balanceProvider);
                 if (pos.isFilled) {
-                  final newBalance =
-                      ref.read(balanceProvider) + pnl;
                   ref
                       .read(balanceProvider.notifier)
-                      .updateBalance(newBalance);
+                      .updateBalance(currentBalance + pnl);
+                } else {
+                  final refund = pos.entryPrice * pos.quantity.abs();
+                  ref
+                      .read(balanceProvider.notifier)
+                      .updateBalance(currentBalance + refund);
                 }
                 ref.read(tradeHistoryProvider.notifier).refresh();
               },

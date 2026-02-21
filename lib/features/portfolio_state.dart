@@ -1,120 +1,10 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:hooks_riverpod/legacy.dart';
+import '../core/constants.dart';
 import '../data/storage_service.dart';
+import '../domain/position.dart';
 
-class Position {
-  final String id;
-  final String symbol;
-  final double strike;
-  final String type;
-  final double quantity;
-  final double entryPrice;
-  final String orderType;
-  final bool isFilled;
-  final DateTime timestamp;
-
-  Position({
-    required this.id,
-    required this.symbol,
-    required this.strike,
-    required this.type,
-    required this.quantity,
-    required this.entryPrice,
-    required this.orderType,
-    required this.isFilled,
-    required this.timestamp,
-  });
-
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'symbol': symbol,
-    'strike': strike,
-    'type': type,
-    'quantity': quantity,
-    'entryPrice': entryPrice,
-    'orderType': orderType,
-    'isFilled': isFilled,
-    'timestamp': timestamp.toIso8601String(),
-  };
-
-  factory Position.fromMap(Map<dynamic, dynamic> map) => Position(
-    id: map['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-    symbol: map['symbol'],
-    strike: (map['strike'] as num).toDouble(),
-    type: map['type'],
-    quantity: (map['quantity'] as num).toDouble(),
-    entryPrice: (map['entryPrice'] as num).toDouble(),
-    orderType: map['orderType'] ?? 'market',
-    isFilled: map['isFilled'] ?? true,
-    timestamp: map['timestamp'] != null
-        ? DateTime.parse(map['timestamp'])
-        : DateTime.now(),
-  );
-
-  Position copyWith({bool? isFilled, double? entryPrice}) => Position(
-    id: id,
-    symbol: symbol,
-    strike: strike,
-    type: type,
-    quantity: quantity,
-    entryPrice: entryPrice ?? this.entryPrice,
-    orderType: orderType,
-    isFilled: isFilled ?? this.isFilled,
-    timestamp: timestamp,
-  );
-}
-
-class TradeRecord {
-  final String id;
-  final String symbol;
-  final double strike;
-  final String type;
-  final double quantity;
-  final double entryPrice;
-  final double exitPrice;
-  final double realizedPnL;
-  final DateTime openedAt;
-  final DateTime closedAt;
-
-  TradeRecord({
-    required this.id,
-    required this.symbol,
-    required this.strike,
-    required this.type,
-    required this.quantity,
-    required this.entryPrice,
-    required this.exitPrice,
-    required this.realizedPnL,
-    required this.openedAt,
-    required this.closedAt,
-  });
-
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'symbol': symbol,
-    'strike': strike,
-    'type': type,
-    'quantity': quantity,
-    'entryPrice': entryPrice,
-    'exitPrice': exitPrice,
-    'realizedPnL': realizedPnL,
-    'openedAt': openedAt.toIso8601String(),
-    'closedAt': closedAt.toIso8601String(),
-  };
-
-  factory TradeRecord.fromMap(Map<dynamic, dynamic> map) => TradeRecord(
-    id: map['id'],
-    symbol: map['symbol'],
-    strike: (map['strike'] as num).toDouble(),
-    type: map['type'],
-    quantity: (map['quantity'] as num).toDouble(),
-    entryPrice: (map['entryPrice'] as num).toDouble(),
-    exitPrice: (map['exitPrice'] as num).toDouble(),
-    realizedPnL: (map['realizedPnL'] as num).toDouble(),
-    openedAt: DateTime.parse(map['openedAt']),
-    closedAt: DateTime.parse(map['closedAt']),
-  );
-}
+export '../domain/position.dart';
 
 class PortfolioNotifier extends StateNotifier<List<Position>> {
   PortfolioNotifier() : super([]) {
@@ -229,13 +119,13 @@ final balanceProvider =
 });
 
 class BalanceNotifier extends StateNotifier<double> {
-  BalanceNotifier() : super(100000.0) {
+  BalanceNotifier() : super(AppConstants.initialBalance) {
     _load();
   }
 
   void _load() {
     final box = StorageService.getBox(StorageService.boxAccount);
-    state = box.get('balance', defaultValue: 100000.0);
+    state = box.get('balance', defaultValue: AppConstants.initialBalance);
   }
 
   Future<void> updateBalance(double newBalance) async {

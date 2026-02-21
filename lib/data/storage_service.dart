@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import '../core/constants.dart';
 
 class StorageService {
   static const String boxAccount = 'account';
@@ -28,7 +29,7 @@ class StorageService {
       if (now.isAfter(lastExpiry)) {
         // Daily reset triggered
         await positionsBox.clear();
-        await accountBox.put('balance', 100000.0);
+        await accountBox.put('balance', AppConstants.initialBalance);
       }
     }
     
@@ -37,7 +38,7 @@ class StorageService {
 
     // Initialize default balance if empty
     if (accountBox.get('balance') == null) {
-      await accountBox.put('balance', 100000.0);
+      await accountBox.put('balance', AppConstants.initialBalance);
     }
   }
 

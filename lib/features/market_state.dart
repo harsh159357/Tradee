@@ -1,11 +1,18 @@
+import 'dart:isolate';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:tradee/features/portfolio_state.dart';
+import '../core/constants.dart';
 import '../data/market_data_service.dart';
+import '../domain/option_contract.dart';
+import '../domain/price_point.dart';
 import '../engines/pricing_engine.dart';
 import '../engines/spread_engine.dart';
 import '../engines/time_engine.dart';
 import '../engines/volatility_engine.dart';
+import 'portfolio_state.dart';
+
+export '../domain/option_contract.dart';
+export '../domain/price_point.dart';
 
 final marketDataProvider = Provider((ref) {
   final service = MarketDataService();
@@ -40,22 +47,6 @@ final sessionOpenPriceProvider = Provider<Map<String, double>>((ref) {
 
 final _sessionOpenStorageProvider = Provider<Map<String, double>>((ref) => {});
 
-class OptionContract {
-  final double strike;
-  final OptionType type;
-  final BlackScholesResult greeks;
-  final double iv;
-  final SpreadResult spread;
-
-  OptionContract({
-    required this.strike,
-    required this.type,
-    required this.greeks,
-    required this.iv,
-    required this.spread,
-  });
-}
-
 final priceHistoryProvider = StreamProvider<Map<String, List<PricePoint>>>((ref) {
   final service = ref.watch(marketDataProvider);
   return service.historyStream;
@@ -71,12 +62,12 @@ final rollingVolatilityProvider = Provider<Map<String, double>>((ref) {
   return result;
 });
 
-final optionsChainProvider = Provider<List<OptionContract>>((ref) {
+final optionsChainProvider = FutureProvider<List<OptionContract>>((ref) async {
   final prices = ref.watch(pricesProvider).value;
   final symbol = ref.watch(selectedAssetProvider);
   final t = ref.watch(tValueProvider).value ?? 0.0;
   final rollingVols = ref.watch(rollingVolatilityProvider);
-  final baseVol = rollingVols[symbol] ?? 0.50;
+  final baseVol = rollingVols[symbol] ?? AppConstants.defaultBaseVolatility;
 
   if (prices == null || prices[symbol] == null || prices[symbol] == 0.0) {
     return [];
@@ -86,12 +77,20 @@ final optionsChainProvider = Provider<List<OptionContract>>((ref) {
 
   _checkLimitOrderFills(ref, spot, t, baseVol);
 
-  final volEngine = VolatilityEngine(baseVolatility: baseVol);
+  final chain = await Isolate.run(() => _computeChain(spot, symbol, t, baseVol));
+  return chain;
+});
 
-  final strikeOffsets = [0.95, 0.97, 0.98, 0.99, 1.0, 1.01, 1.02, 1.03, 1.05];
+List<OptionContract> _computeChain(
+  double spot,
+  String symbol,
+  double t,
+  double baseVol,
+) {
+  final volEngine = VolatilityEngine(baseVolatility: baseVol);
   final List<OptionContract> chain = [];
 
-  for (final offset in strikeOffsets) {
+  for (final offset in AppConstants.strikeOffsets) {
     double strike;
     if (symbol.contains('BTC')) {
       strike = (spot * offset / 100).round() * 100.0;
@@ -104,7 +103,7 @@ final optionsChainProvider = Provider<List<OptionContract>>((ref) {
     for (final type in OptionType.values) {
       final iv = volEngine.calculateIV(S: spot, K: strike, T: t);
       final greeks = BlackScholesEngine.calculate(
-        S: spot, K: strike, T: t, r: 0.05, v: iv, type: type,
+        S: spot, K: strike, T: t, r: AppConstants.riskFreeRate, v: iv, type: type,
       );
       final spread = SpreadEngine.calculate(
         midPrice: greeks.premium,
@@ -122,7 +121,7 @@ final optionsChainProvider = Provider<List<OptionContract>>((ref) {
   }
 
   return chain;
-});
+}
 
 void _checkLimitOrderFills(Ref ref, double spot, double t, double baseVol) {
   final portfolio = ref.read(portfolioProvider);
@@ -132,7 +131,7 @@ void _checkLimitOrderFills(Ref ref, double spot, double t, double baseVol) {
         S: spot, K: pos.strike, T: t,
       );
       final res = BlackScholesEngine.calculate(
-        S: spot, K: pos.strike, T: t, r: 0.05, v: iv,
+        S: spot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
         type: pos.type == 'call' ? OptionType.call : OptionType.put,
       );
 

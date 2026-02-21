@@ -1,23 +1,14 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../core/constants.dart';
+import '../domain/margin_status.dart';
+import '../domain/position.dart';
 import 'market_state.dart';
 import 'portfolio_state.dart';
 import '../engines/pricing_engine.dart';
 import '../engines/margin_engine.dart';
 import '../engines/volatility_engine.dart';
 
-class MarginStatus {
-  final double equity;
-  final double maintenanceMargin;
-  final double unrealizedPnL;
-  final bool isLiquidated;
-
-  MarginStatus({
-    required this.equity,
-    required this.maintenanceMargin,
-    required this.unrealizedPnL,
-    required this.isLiquidated,
-  });
-}
+export '../domain/margin_status.dart';
 
 final marginStatusProvider = Provider<MarginStatus>((ref) {
   final balance = ref.watch(balanceProvider);
@@ -35,13 +26,13 @@ final marginStatusProvider = Provider<MarginStatus>((ref) {
     final spot = prices[pos.symbol] ?? 0.0;
     if (spot == 0) continue;
 
-    final baseVol = rollingVols[pos.symbol] ?? 0.50;
+    final baseVol = rollingVols[pos.symbol] ?? AppConstants.defaultBaseVolatility;
     final iv = VolatilityEngine(baseVolatility: baseVol).calculateIV(
       S: spot, K: pos.strike, T: t,
     );
 
     final currentRes = BlackScholesEngine.calculate(
-      S: spot, K: pos.strike, T: t, r: 0.05, v: iv,
+      S: spot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
       type: pos.type == 'call' ? OptionType.call : OptionType.put,
     );
 
@@ -51,7 +42,7 @@ final marginStatusProvider = Provider<MarginStatus>((ref) {
       totalMarginRequired += currentRes.premium * pos.quantity;
     } else {
       totalMarginRequired += MarginEngine.calculateShortMargin(
-        S: spot, K: pos.strike, T: t, r: 0.05, v: iv,
+        S: spot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
         type: pos.type == 'call' ? OptionType.call : OptionType.put,
         quantity: pos.quantity.abs(),
       );
@@ -82,12 +73,12 @@ Map<String, double> calculateExitPrices(
     final spot = prices[pos.symbol] ?? 0.0;
     if (spot == 0) continue;
 
-    final baseVol = rollingVols[pos.symbol] ?? 0.50;
+    final baseVol = rollingVols[pos.symbol] ?? AppConstants.defaultBaseVolatility;
     final iv = VolatilityEngine(baseVolatility: baseVol).calculateIV(
       S: spot, K: pos.strike, T: t,
     );
     final res = BlackScholesEngine.calculate(
-      S: spot, K: pos.strike, T: t, r: 0.05, v: iv,
+      S: spot, K: pos.strike, T: t, r: AppConstants.riskFreeRate, v: iv,
       type: pos.type == 'call' ? OptionType.call : OptionType.put,
     );
     exitPrices[pos.id] = res.premium;

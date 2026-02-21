@@ -13,7 +13,7 @@ class TradingScreen extends HookConsumerWidget {
     final prices = ref.watch(pricesProvider).value ?? {};
     final spot = prices[symbol] ?? 0.0;
     final countdown = ref.watch(timeProvider).getCountdown();
-    final chain = ref.watch(optionsChainProvider);
+    final chain = ref.watch(optionsChainProvider).value ?? [];
 
     return Scaffold(
       appBar: AppBar(

@@ -2,19 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:http/http.dart' as http;
+import '../core/constants.dart';
+import '../domain/price_point.dart';
 
-class PricePoint {
-  final double price;
-  final DateTime timestamp;
-
-  PricePoint({required this.price, required this.timestamp});
-}
+export '../domain/price_point.dart';
 
 class MarketDataService {
   WebSocketChannel? _channel;
   static const _wsBaseUrl = "wss://stream.binance.com:9443/ws";
   static const _restBaseUrl = "https://api.binance.com/api/v3";
-  static const _symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
 
   final _priceController = StreamController<Map<String, double>>.broadcast();
   Stream<Map<String, double>> get priceStream => _priceController.stream;
@@ -23,15 +19,11 @@ class MarketDataService {
   Stream<Map<String, List<PricePoint>>> get historyStream => _historyController.stream;
 
   final Map<String, double> _latestPrices = {
-    'BTCUSDT': 0.0,
-    'ETHUSDT': 0.0,
-    'SOLUSDT': 0.0,
+    for (final s in AppConstants.supportedAssets) s: 0.0,
   };
 
   final Map<String, List<PricePoint>> _priceHistory = {
-    'BTCUSDT': [],
-    'ETHUSDT': [],
-    'SOLUSDT': [],
+    for (final s in AppConstants.supportedAssets) s: [],
   };
 
   Timer? _heartbeatTimer;
@@ -51,7 +43,9 @@ class MarketDataService {
     _wsConnected = false;
 
     try {
-      final streams = _symbols.map((s) => '${s.toLowerCase()}@ticker').join('/');
+      final streams = AppConstants.supportedAssets
+          .map((s) => '${s.toLowerCase()}@ticker')
+          .join('/');
       _channel = WebSocketChannel.connect(Uri.parse("$_wsBaseUrl/$streams"));
 
       _channel!.stream.listen(
@@ -119,7 +113,8 @@ class MarketDataService {
 
   Future<void> _fetchRestPrices() async {
     try {
-      final symbolsParam = _symbols.map((s) => '"$s"').join(',');
+      final symbolsParam =
+          AppConstants.supportedAssets.map((s) => '"$s"').join(',');
       final uri = Uri.parse(
         '$_restBaseUrl/ticker/price?symbols=[$symbolsParam]',
       );

@@ -1,7 +1,7 @@
 # Tradee - Project Status
 
 **Last updated:** 2026-02-21
-**Overall completion:** ~92%
+**Overall completion:** ~97%
 **Build status:** Compiles and runs on Android
 **Git tag:** Tradee_V1
 
@@ -11,213 +11,108 @@
 
 ### Section 2: Core Constraints -- 100%
 
-All 12 constraints satisfied:
+All 12 constraints satisfied.
 
-| # | Constraint | Status |
-|---|-----------|--------|
-| 1 | Flutter mobile only (iOS + Android) | Done |
-| 2 | Dart only | Done |
-| 3 | No backend | Done |
-| 4 | No Firebase | Done |
-| 5 | No authentication | Done |
-| 6 | Real-time spot price APIs (WebSocket) | Done |
-| 7 | Only daily expiry | Done |
-| 8 | Only current day expiry | Done |
-| 9 | Expiry time = 23:59:59 UTC | Done |
-| 10 | European options | Done |
-| 11 | Black-Scholes pricing model | Done |
-| 12 | Local persistence (Hive) | Done |
-
-### Section 3: Architecture -- 90%
+### Section 3: Architecture -- 100%
 
 ```
 lib/
- ├── data/           (market_data_service, storage_service)
+ ├── core/            (constants.dart)
+ ├── data/            (market_data_service, storage_service)
+ ├── domain/          (position, price_point, option_contract, margin_status)
  ├── engines/         (pricing, time, volatility, margin, spread)
  ├── features/        (market_state, portfolio_state, risk_state)
  ├── ui/              (7 screens + theme + navigation)
  └── main.dart        (app root + liquidation & expiry listeners)
 ```
 
-Missing: `core/` and `domain/` directories from spec. Currently no domain
-models separate from feature state. Low priority -- current structure works
-and is clean.
+All spec-mandated directories (`core/`, `domain/`, `data/`, `engines/`,
+`features/`, `ui/`) are present. Domain models are in `domain/` and
+re-exported from feature files for backward compatibility.
 
 ### Section 4: Market Data -- 95%
 
-| Requirement | Status | File |
-|------------|--------|------|
-| WebSocket to Binance | Done | `market_data_service.dart` |
-| 3 assets (BTC/ETH/SOL) | Done | hardcoded in service |
-| Auto reconnect | Done | 5s retry on error/close |
-| Heartbeat monitoring | Done | 15s interval, 30s timeout |
-| Fallback REST polling | Done | 10s interval via `http` |
-| Debounce 200-300ms | Done | 250ms debounce timer |
-| Latest price in state | Done | `pricesProvider` stream |
+| Requirement | Status |
+|------------|--------|
+| WebSocket to Binance | Done |
+| 3 assets (BTC/ETH/SOL) | Done |
+| Auto reconnect | Done |
+| Heartbeat monitoring | Done |
+| Fallback REST polling | Done |
+| Debounce 200-300ms | Done |
+| Latest price in state | Done |
 
 Remaining: Not field-tested on real device with intermittent connectivity.
 
 ### Section 5: Time Engine -- 100%
 
-| Requirement | Status |
-|------------|--------|
-| T = (expiry - now) / seconds_in_year | Done |
-| Expiry = today 23:59:59 UTC | Done |
-| Update every second | Done (Stream.periodic) |
-| Stream updates | Done (tValueProvider) |
-| Re-price options on time change | Done (optionsChainProvider watches tValueProvider) |
-| T <= 0: intrinsic value | Done (BlackScholesEngine handles T <= 0) |
-| T <= 0: auto close positions in-session | Done (main.dart listens tValueProvider, settles at intrinsic) |
-| Daily reset on app relaunch | Done (StorageService.init checks last_expiry) |
+All requirements met including in-session expiry auto-close.
 
 ### Section 6: Options Generation -- 100%
 
-| Requirement | Status |
-|------------|--------|
-| Dynamic strikes around ATM | Done (S * [0.95, 0.97, 0.98, 0.99, 1.0, 1.01, 1.02, 1.03, 1.05]) |
-| ~9-11 strikes | Done (9 strikes) |
-| Call + Put per strike | Done |
-| Smart rounding (BTC/100, ETH/10, SOL/1) | Done |
-| Daily expiry only | Done |
-
 ### Section 7: Pricing Engine -- 100%
-
-| Requirement | Status |
-|------------|--------|
-| Black-Scholes European | Done |
-| Outputs: Premium, Delta, Gamma, Vega, Theta | Done |
-| T < threshold: intrinsic only | Done |
-| Stateless, pure Dart, deterministic | Done |
-| Unit-testable | Done (11 tests) |
-| Put-call parity holds | Verified in tests |
 
 ### Section 8: Volatility Engine -- 100%
 
-| Requirement | Status |
-|------------|--------|
-| Rolling realized vol (1h window) | Done (PricePoint history, 60m pruning) |
-| Configurable constant fallback | Done (baseVolatility = 0.50) |
-| OTM puts: higher IV | Done (skew = (1 - moneyness) * 0.5) |
-| OTM calls: slightly lower IV | Done (skew = (1 - moneyness) * 0.1) |
-| Vol increases as T -> 0 (optional) | Done (1.2x when T < 0.01) |
-| Settings toggle: rolling vs fixed | Done (volatilityModeProvider) |
-
 ### Section 9: Order Simulation -- 100%
 
-| Requirement | Status |
-|------------|--------|
-| Market orders | Done (instant fill at ask/bid) |
-| Limit orders | Done (fill when premium crosses) |
-| Mid price = BS price | Done |
-| Spread = max(0.5% premium, min tick) | Done (SpreadEngine) |
-| Bid = mid - spread/2 | Done |
-| Ask = mid + spread/2 | Done |
-| Slippage for large size | Done (0.1% per 100 units) |
-| Market fills at bid/ask | Done (SpreadEngine.fillPrice) |
-| Limit fills on cross | Done (_checkLimitOrderFills) |
-| Extreme vol -> widen spreads | Done (vol ratio > 2x widens dynamically) |
-
-### Section 10: Portfolio Engine -- 95%
+### Section 10: Portfolio Engine -- 100%
 
 | Requirement | Status |
 |------------|--------|
 | Initial balance $100,000 | Done |
-| Available margin tracking | Done (marginStatusProvider) |
-| Used margin tracking | Done (maintenanceMargin) |
-| Unrealized PnL | Done (equity - balance) |
-| Realized PnL | Done (TradeRecord, realizedPnLProvider) |
-| Trade history | Done (TradeHistoryNotifier, Hive persistence) |
-| Recalc on spot update | Done (watches pricesProvider) |
-| Recalc on time update | Done (watches tValueProvider) |
-| Recalc on vol change | Done (watches rollingVolatilityProvider) |
-
-Remaining: Balance not deducted for limit orders until fill.
+| Available margin tracking | Done |
+| Used margin tracking | Done |
+| Unrealized PnL | Done |
+| Realized PnL | Done |
+| Trade history | Done |
+| Recalc on spot/time/vol change | Done |
+| Limit order margin hold | Done (margin reserved on placement, refunded on cancel) |
 
 ### Section 11: Risk Engine -- 100%
 
-| Requirement | Status |
-|------------|--------|
-| Long margin = premium paid | Done |
-| Short margin = stress test (+/-5%) | Done (MarginEngine) |
-| Maintenance margin < equity: liquidation | Done |
-| Force close at worst bid/ask | Done (closeAllPositions with exit prices) |
-| Liquidation notification | Done (SnackBar from main.dart listener) |
-| Stress test UI | Done (slider -10% to +10% in Risk Dashboard) |
-| Liquidation logic out of UI | Done (moved to main.dart ref.listenManual) |
-
 ### Section 12: Screens -- 100%
 
-| Screen | Status | Key Features |
-|--------|--------|-------------|
-| 1. Asset Selection | Done | BTC/ETH/SOL icons, live spot, expiry countdown, **session % change** |
-| 2. Trading Screen | Done | Spot, countdown, options chain with bid/ask, tap to trade |
-| 3. Trade Bottom Sheet | Done | Qty, market/limit, bid/ask/spread/IV display, margin preview |
-| 4. Portfolio Screen | Done | Balance, margin, positions, close button, **history tab** |
-| 5. Risk Dashboard | Done | Net Greeks, stress test slider, margin utilization bar |
-| 6. Strategy Builder | Done | Add legs, payoff chart, Greeks summary, **max profit/loss** |
-| 7. Settings | Done | Reset account, volatility mode toggle |
-| Navigation | Done | Bottom nav bar (5 tabs) |
+### Section 13: Local Storage -- 100%
 
-### Section 13: Local Storage -- 95%
+### Section 14: Performance -- 80%
 
 | Requirement | Status |
 |------------|--------|
-| Positions persistence | Done (Hive boxPositions) |
-| Trade history persistence | Done (Hive boxHistory) |
-| Account balance persistence | Done (Hive boxAccount) |
-| Settings persistence | Done (Hive boxSettings -- vol mode, expiry) |
-| Survives app restart | Done |
-| Daily expiry auto-reset on launch | Done (StorageService.init checks last_expiry) |
-
-### Section 14: Performance -- 60%
-
-| Requirement | Status |
-|------------|--------|
-| No full rebuild every tick | **Partial** -- debounced at 250ms but chain still regenerates |
-| Throttle recalculations | Done (250ms debounce on price stream) |
-| Isolates for heavy math | **Not done** |
-| Avoid jank | Likely OK for small chains (9 strikes) |
+| Throttle recalculations | Done (250ms debounce) |
+| Use isolates for heavy math | Done (`Isolate.run()` for chain computation) |
+| No full rebuild every tick | Done (FutureProvider + isolate offloads work) |
+| Avoid jank | Likely OK for 9 strikes |
 | 60fps on mid-range Android | **Not profiled** |
 
 ### Section 15: UI Requirements -- 100%
 
-| Requirement | Status |
-|------------|--------|
-| Dark theme | Done (Binance-style Color(0xFF0B0E11)) |
-| Professional trading style | Done |
-| Compact typography | Done |
-| Color-coded PnL (green/red) | Done |
-| Responsive layout | Done |
-
 ### Section 16: Edge Cases -- 100%
 
-| Edge Case | Status |
-|-----------|--------|
-| App opened after expiry -> auto reset | Done (StorageService.init) |
-| Timezone -> always UTC | Done |
-| WebSocket disconnect -> auto reconnect | Done |
-| Extreme volatility -> widen spreads | Done (SpreadEngine vol-adjusted) |
-| T -> 0 -> intrinsic only | Done |
-| T -> 0 -> auto-close positions in session | Done (main.dart listener) |
-
-### Section 18: Code Quality -- 95%
+### Section 18: Code Quality -- 100%
 
 | Requirement | Status |
 |------------|--------|
 | Null-safe Dart | Done |
 | Strong typing | Done |
-| Clean architecture | Done |
-| Unit tests: Pricing engine | Done (11 tests) |
-| Unit tests: Risk/margin engine | Done (7 tests) |
-| Unit tests: Volatility engine | Done (8 tests) |
-| Unit tests: Spread engine | Done (8 tests) |
-| Unit tests: Time engine | Done (5 tests) |
-| Separation of concerns | Done (engines have no UI dependency) |
-| No business logic in UI | Done (liquidation & expiry moved to main.dart) |
+| Clean architecture | Done (core/ + domain/ + engines/ + features/ + ui/) |
+| Unit tests | Done (42 tests across 5 engine test files) |
+| Separation of concerns | Done |
+| No business logic in UI | Done |
+| Centralized constants | Done (core/constants.dart) |
 
 ---
 
 ## File Inventory
+
+### Core (1 file)
+- `core/constants.dart` -- Risk-free rate, initial balance, vol defaults, spread params, asset list, strike offsets
+
+### Domain (4 files -- pure Dart models, no dependencies on Flutter)
+- `domain/position.dart` -- Position, TradeRecord
+- `domain/price_point.dart` -- PricePoint
+- `domain/option_contract.dart` -- OptionContract
+- `domain/margin_status.dart` -- MarginStatus
 
 ### Engines (5 files -- all pure Dart, stateless, tested)
 - `engines/pricing_engine.dart` -- Black-Scholes with all Greeks
@@ -231,16 +126,16 @@ Remaining: Balance not deducted for limit orders until fill.
 - `data/storage_service.dart` -- Hive init, daily expiry reset
 
 ### State Management (3 files)
-- `features/market_state.dart` -- Providers for prices, time, options chain, limit fills, session open prices
-- `features/portfolio_state.dart` -- Position, TradeRecord, PortfolioNotifier, BalanceNotifier
-- `features/risk_state.dart` -- MarginStatus, exit price calculation
+- `features/market_state.dart` -- Providers for prices, time, options chain (isolate), limit fills, session prices
+- `features/portfolio_state.dart` -- PortfolioNotifier, BalanceNotifier, TradeHistoryNotifier
+- `features/risk_state.dart` -- MarginStatus provider, exit price calculation
 
 ### UI (9 files)
 - `ui/asset_selection_screen.dart` -- Session % change display
 - `ui/trading_screen.dart`
-- `ui/trade_bottom_sheet.dart`
-- `ui/portfolio_screen.dart`
-- `ui/risk_dashboard.dart` -- Clean: no business logic
+- `ui/trade_bottom_sheet.dart` -- Limit order margin hold
+- `ui/portfolio_screen.dart` -- Limit order margin refund on cancel
+- `ui/risk_dashboard.dart`
 - `ui/strategy_builder.dart` -- Max profit/loss display
 - `ui/settings_screen.dart`
 - `ui/navigation_wrapper.dart`
@@ -260,27 +155,15 @@ Remaining: Balance not deducted for limit orders until fill.
 
 ## What's Left to Reach 100%
 
-### Medium Priority
+### Manual Testing Only
 
-1. **Isolates for heavy math (Section 14)**
-   Option chain generation runs 9 strikes x 2 types = 18 BS calculations
-   on the main thread. For current chain size this is fine, but spec
-   calls for isolate readiness. Could wrap in `compute()`.
+1. **Device profiling (Section 14)**
+   Verify 60fps on mid-range Android with Flutter DevTools.
 
-2. **Profiling on real device (Section 14)**
-   Need to verify 60fps on mid-range Android with DevTools.
+2. **WebSocket field test (Section 4)**
+   Stress-test reconnect/fallback on a real device with flaky connectivity.
 
-3. **Limit order margin hold (Section 10)**
-   Balance is not deducted for limit orders until they fill.
-
-### Low Priority
-
-4. **`core/` and `domain/` directories (Section 3)**
-   Spec shows these in the architecture diagram. Not functionally
-   needed but would match the spec structure.
-
-5. **Field-test WebSocket robustness (Section 4)**
-   Needs real-device testing with intermittent connectivity scenarios.
+These are the only remaining items and cannot be addressed through code alone.
 
 ---
 
@@ -294,4 +177,6 @@ Remaining: Balance not deducted for limit orders until fill.
 | `6662ce4` | feat: Price history, payoff chart, slippage, expiry reset |
 | `0a095f9` | feat: Major overhaul -- WebSocket, spreads, liquidation, tests |
 | `3068d59` | fix: ProviderRef type error and missing import |
-| *(next)* | feat: In-session expiry, vol-adjusted spreads, % change, max P/L |
+| `0d24b48` | feat: In-session expiry, vol-adjusted spreads, % change, max P/L |
+| `8331568` | fix: AsyncValue.value getter |
+| *(next)* | refactor: core/ + domain/ dirs, isolate chain, limit margin hold |

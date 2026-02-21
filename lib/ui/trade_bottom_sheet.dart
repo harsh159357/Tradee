@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../core/constants.dart';
 import '../features/market_state.dart';
 import '../features/portfolio_state.dart';
 import '../engines/spread_engine.dart';
@@ -177,7 +178,7 @@ class TradeBottomSheet extends HookConsumerWidget {
     double entryPrice;
     if (oType == 'market') {
       final rollingVols = ref.read(rollingVolatilityProvider);
-      final currentVol = rollingVols[symbol] ?? 0.50;
+      final currentVol = rollingVols[symbol] ?? AppConstants.defaultBaseVolatility;
       entryPrice = SpreadEngine.fillPrice(
         midPrice: contract.greeks.premium,
         quantity: qty * qtyFactor,
@@ -201,10 +202,13 @@ class TradeBottomSheet extends HookConsumerWidget {
 
     ref.read(portfolioProvider.notifier).addOrder(pos);
 
+    final currentBalance = ref.read(balanceProvider);
     if (oType == 'market') {
       final cost = entryPrice * qty * qtyFactor;
-      final currentBalance = ref.read(balanceProvider);
       ref.read(balanceProvider.notifier).updateBalance(currentBalance - cost);
+    } else {
+      final marginHold = entryPrice * qty;
+      ref.read(balanceProvider.notifier).updateBalance(currentBalance - marginHold);
     }
 
     Navigator.pop(context);
