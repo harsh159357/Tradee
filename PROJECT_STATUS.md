@@ -1,282 +1,312 @@
-# 🎯 TRADEE PROJECT STATUS REPORT
+# Tradee - Project Status
 
-## Executive Summary
-The Tradee Flutter trading platform is **~65-70% complete**. Core engines and state management are implemented, most UI screens are functional, and the project builds successfully on Android. Key gaps remain in WebSocket integration, persistence, and edge case handling.
-
----
-
-## ✅ COMPLETED FEATURES
-
-### 1. **Project Setup & Architecture**
-- ✅ Flutter project structure initialized
-- ✅ Clean architecture directories created (core, data, features, engines, ui)
-- ✅ Riverpod state management integrated
-- ✅ Dark theme implemented
-- ✅ Android build configured with NDK 27.0.12077973
-- ✅ Build system fixed (Gradle namespace issues resolved)
-- ✅ Hive/Isar dependencies added
-- ✅ Material Design 3 UI framework
-
-### 2. **Pricing Engine (Black-Scholes)**
-- ✅ Full Black-Scholes European option pricing
-- ✅ All Greeks calculated: Delta, Gamma, Vega, Theta
-- ✅ Intrinsic value fallback at expiry (T ≤ 0)
-- ✅ Stateless and pure Dart implementation
-- ✅ Proper cumulative normal distribution (Abramowitz & Stegun approximation)
-- ✅ Unit tests for ATM, ITM, OTM scenarios
-- ✅ Edge case handling for T ≤ 0
-
-### 3. **Time Engine**
-- ✅ UTC-based expiry calculation (23:59:59 UTC daily)
-- ✅ T value calculation in years (remaining_seconds / 31536000)
-- ✅ Stream of T updates every second
-- ✅ Countdown formatting (HH:mm:ss)
-- ✅ Handles post-expiry scenarios (T = 0.0)
-
-### 4. **Volatility Engine**
-- ✅ Base volatility configurable (default 50%)
-- ✅ Volatility skew implementation:
-  - OTM puts: +50% IV boost
-  - OTM calls: -10% IV adjustment
-- ✅ Time factor (1.2x when T < 0.01)
-- ✅ Rolling realized volatility calculation
-- ✅ Log-return based std dev computation
-
-### 5. **Margin/Risk Engine**
-- ✅ MarginStatus provider with:
-  - Equity calculation (balance + unrealized PnL)
-  - Maintenance margin tracking
-  - Liquidation detection (equity < margin required)
-- ✅ Long option margin = premium paid
-- ✅ Short option margin = stress test calculation
-- ✅ PnL computation for filled positions
-
-### 6. **Market Data Service**
-- ✅ WebSocket connection to Binance public stream
-- ✅ Multi-asset support (BTCUSDT, ETHUSDT, SOLUSDT)
-- ✅ Broadcast stream for price updates
-- ✅ Auto-reconnect logic with 5s retry
-- ✅ In-memory price cache
-
-### 7. **Portfolio State Management**
-- ✅ Position class with:
-  - ID, symbol, strike, type, quantity
-  - Entry price, order type, fill status
-  - Timestamp tracking
-- ✅ PortfolioNotifier with:
-  - addOrder(), updatePosition(), closePosition()
-  - Hive persistence (put/delete/load)
-- ✅ BalanceNotifier for account balance
-- ✅ copyWith for immutability
-
-### 8. **Options Chain Generation**
-- ✅ Dynamic strike generation around ATM:
-  - S ±1%, ±2%, ±3%, ±5%
-  - ~9 strikes per asset
-- ✅ Call and put pair generation
-- ✅ Integration with Black-Scholes pricing
-- ✅ Provider-based caching
-
-### 9. **UI Screens (7 Total)**
-- ✅ **Asset Selection Screen**: BTC/ETH/SOL with live prices
-- ✅ **Trading Screen**: Options chain with bid/ask display
-- ✅ **Trade Bottom Sheet**: 
-  - Market/Limit order types
-  - Quantity and limit price input
-  - Greeks display
-  - Order execution
-- ✅ **Portfolio Screen**: Positions list, balance, margin tracking
-- ✅ **Risk Dashboard**: Portfolio Greeks, margin status
-- ✅ **Strategy Builder Screen**: Multi-leg strategy composition
-- ✅ **Settings Screen**: Account management
-
-### 10. **Navigation & Theme**
-- ✅ Bottom navigation bar (5 tabs)
-- ✅ Dark trading theme (professional look)
-- ✅ Color-coded displays
-- ✅ Responsive layouts for mobile
-
-### 11. **Order Management**
-- ✅ Market orders (instant fill at mid-price)
-- ✅ Limit orders (fill when premium crosses limit price)
-- ✅ Order type tracking (market/limit)
-- ✅ Fill status management
-- ✅ Position lifecycle (open → filled/pending → closed)
-
-### 12. **Local Storage**
-- ✅ Hive integration initialized
-- ✅ Position persistence
-- ✅ Account balance persistence
-- ✅ Settings storage ready
+**Last updated:** 2026-02-21
+**Overall completion:** ~85%
+**Build status:** Compiles and runs on Android
 
 ---
 
-## ⚠️ INCOMPLETE/PARTIAL FEATURES
+## Spec Coverage by Section
 
-### 1. **WebSocket Integration** (30% Complete)
-- ✅ WebSocket connection code written
-- ❌ NOT TESTED - WebSocket may have connection issues
-- ❌ Heartbeat monitoring NOT implemented
-- ❌ Fallback REST polling (every 10s) NOT implemented
-- ❌ Update debouncing (200-300ms) NOT configured
-- ⚠️ **Impact**: Market data may not flow properly in real app
+### Section 2: Core Constraints -- 100%
 
-### 2. **Trade History** (0% Complete)
-- ❌ No trade history tracking
-- ❌ No realized PnL calculation
-- ❌ No trade journal storage
-- ⚠️ **Impact**: Users can't review past trades
+All 12 constraints satisfied:
 
-### 3. **Liquidation Handling** (20% Complete)
-- ✅ Liquidation detection in risk_state.dart
-- ❌ NO auto-liquidation execution
-- ❌ NO force-close positions at bid/ask
-- ❌ NO liquidation notifications
-- ⚠️ **Impact**: Accounts won't auto-liquidate if margin breached
+| # | Constraint | Status |
+|---|-----------|--------|
+| 1 | Flutter mobile only (iOS + Android) | Done |
+| 2 | Dart only | Done |
+| 3 | No backend | Done |
+| 4 | No Firebase | Done |
+| 5 | No authentication | Done |
+| 6 | Real-time spot price APIs (WebSocket) | Done |
+| 7 | Only daily expiry | Done |
+| 8 | Only current day expiry | Done |
+| 9 | Expiry time = 23:59:59 UTC | Done |
+| 10 | European options | Done |
+| 11 | Black-Scholes pricing model | Done |
+| 12 | Local persistence (Hive) | Done |
 
-### 4. **Bid/Ask Spreads** (50% Complete)
-- ❌ Spread calculation NOT implemented (0.5% of premium)
-- ❌ Bid/Ask prices NOT shown separately
-- ✅ Mid-price (BS price) calculated
-- ⚠️ **Impact**: Users see only mid-price, not realistic fills
+### Section 3: Architecture -- 90%
 
-### 5. **Slippage Simulation** (0% Complete)
-- ❌ Large order slippage NOT modeled
-- ❌ Size impact NOT calculated
-- ⚠️ **Impact**: Unrealistic pricing for large orders
+```
+lib/
+ ├── data/           (market_data_service, storage_service)
+ ├── engines/         (pricing, time, volatility, margin, spread)
+ ├── features/        (market_state, portfolio_state, risk_state)
+ ├── ui/              (7 screens + theme + navigation)
+ └── main.dart
+```
 
-### 6. **Volatility Skew Edge Cases** (60% Complete)
-- ✅ Basic skew implemented
-- ⚠️ Extreme volatility widening NOT implemented
-- ⚠️ Term structure NOT handled (only daily)
-- ⚠️ Historical IV surface NOT tracked
+Missing: `core/` and `domain/` directories from spec. Currently no domain
+models separate from feature state. Low priority -- current structure works
+and is clean.
 
-### 7. **Performance Optimization** (40% Complete)
-- ✅ Provider caching exists
-- ❌ NO isolate usage for heavy math
-- ❌ NO throttling of recalculations
-- ⚠️ Option chain regenerates on every price/time update
-- ⚠️ **Risk**: May cause jank on mid-range Android
+### Section 4: Market Data -- 95%
 
-### 8. **Error Handling & Edge Cases** (30% Complete)
-- ✅ Expiry handling (T ≤ 0) coded
-- ❌ Post-expiry reset NOT automated
-- ❌ Timezone handling relies on UTC only (fragile)
-- ❌ Reconnection logging minimal
-- ❌ NO graceful degradation if WebSocket fails
+| Requirement | Status | File |
+|------------|--------|------|
+| WebSocket to Binance | Done | `market_data_service.dart` |
+| 3 assets (BTC/ETH/SOL) | Done | hardcoded in service |
+| Auto reconnect | Done | 5s retry on error/close |
+| Heartbeat monitoring | Done | 15s interval, 30s timeout |
+| Fallback REST polling | Done | 10s interval via `http` |
+| Debounce 200-300ms | Done | 250ms debounce timer |
+| Latest price in state | Done | `pricesProvider` stream |
 
-### 9. **Spread & Slippage Simulation** (0%)
-- ❌ Bid/Ask generation NOT implemented
-- ❌ Spread formula NOT coded (max(0.5% premium, min_tick))
-- ❌ Slippage for large orders NOT modeled
+Remaining: Not field-tested on real device with intermittent connectivity.
 
-### 10. **Expiry Edge Case** (0%)
-- ❌ App opened after expiry: NO auto-reset
-- ❌ NO check if T ≤ 0 on app launch
-- ❌ NO auto-archive of expired options
+### Section 5: Time Engine -- 95%
 
-### 11. **Unit Tests** (10% Complete)
-- ✅ Pricing engine tests (3 tests)
-- ❌ NO tests for: volatility, margin, portfolio, risk, time engine
-- ⚠️ **Impact**: Critical business logic untested
+| Requirement | Status |
+|------------|--------|
+| T = (expiry - now) / seconds_in_year | Done |
+| Expiry = today 23:59:59 UTC | Done |
+| Update every second | Done (Stream.periodic) |
+| Stream updates | Done (tValueProvider) |
+| Re-price options on time change | Done (optionsChainProvider watches tValueProvider) |
+| T <= 0: intrinsic value | Done (BlackScholesEngine handles T <= 0) |
+| T <= 0: auto close positions | **Partial** -- positions reset on next app launch via StorageService, but no in-session auto-close when clock hits midnight |
+
+### Section 6: Options Generation -- 100%
+
+| Requirement | Status |
+|------------|--------|
+| Dynamic strikes around ATM | Done (S * [0.95, 0.97, 0.98, 0.99, 1.0, 1.01, 1.02, 1.03, 1.05]) |
+| ~9-11 strikes | Done (9 strikes) |
+| Call + Put per strike | Done |
+| Smart rounding (BTC/100, ETH/10, SOL/1) | Done |
+| Daily expiry only | Done |
+
+### Section 7: Pricing Engine -- 100%
+
+| Requirement | Status |
+|------------|--------|
+| Black-Scholes European | Done |
+| Outputs: Premium, Delta, Gamma, Vega, Theta | Done |
+| T < threshold: intrinsic only | Done |
+| Stateless, pure Dart, deterministic | Done |
+| Unit-testable | Done (11 tests) |
+| Put-call parity holds | Verified in tests |
+
+### Section 8: Volatility Engine -- 100%
+
+| Requirement | Status |
+|------------|--------|
+| Rolling realized vol (1h window) | Done (PricePoint history, 60m pruning) |
+| Configurable constant fallback | Done (baseVolatility = 0.50) |
+| OTM puts: higher IV | Done (skew = (1 - moneyness) * 0.5) |
+| OTM calls: slightly lower IV | Done (skew = (1 - moneyness) * 0.1) |
+| Vol increases as T -> 0 (optional) | Done (1.2x when T < 0.01) |
+| Settings toggle: rolling vs fixed | Done (volatilityModeProvider) |
+
+### Section 9: Order Simulation -- 100%
+
+| Requirement | Status |
+|------------|--------|
+| Market orders | Done (instant fill at ask/bid) |
+| Limit orders | Done (fill when premium crosses) |
+| Mid price = BS price | Done |
+| Spread = max(0.5% premium, min tick) | Done (SpreadEngine) |
+| Bid = mid - spread/2 | Done |
+| Ask = mid + spread/2 | Done |
+| Slippage for large size | Done (0.1% per 100 units) |
+| Market fills at bid/ask | Done (SpreadEngine.fillPrice) |
+| Limit fills on cross | Done (_checkLimitOrderFills) |
+
+### Section 10: Portfolio Engine -- 95%
+
+| Requirement | Status |
+|------------|--------|
+| Initial balance $100,000 | Done |
+| Available margin tracking | Done (marginStatusProvider) |
+| Used margin tracking | Done (maintenanceMargin) |
+| Unrealized PnL | Done (equity - balance) |
+| Realized PnL | Done (TradeRecord, realizedPnLProvider) |
+| Trade history | Done (TradeHistoryNotifier, Hive persistence) |
+| Recalc on spot update | Done (watches pricesProvider) |
+| Recalc on time update | Done (watches tValueProvider) |
+| Recalc on vol change | Done (watches rollingVolatilityProvider) |
+
+Remaining: Balance not deducted for limit orders until fill.
+
+### Section 11: Risk Engine -- 95%
+
+| Requirement | Status |
+|------------|--------|
+| Long margin = premium paid | Done |
+| Short margin = stress test (+/-5%) | Done (MarginEngine) |
+| Maintenance margin < equity: liquidation | Done |
+| Force close at worst bid/ask | Done (closeAllPositions with exit prices) |
+| Liquidation notification | Done (SnackBar + banner) |
+| Stress test UI | Done (slider -10% to +10% in Risk Dashboard) |
+
+Remaining: Liquidation uses `addPostFrameCallback` in UI -- could be
+moved to a proper listener for cleaner architecture.
+
+### Section 12: Screens -- 100%
+
+| Screen | Status | Key Features |
+|--------|--------|-------------|
+| 1. Asset Selection | Done | BTC/ETH/SOL icons, live spot, expiry countdown |
+| 2. Trading Screen | Done | Spot, countdown, options chain with bid/ask, tap to trade |
+| 3. Trade Bottom Sheet | Done | Qty, market/limit, bid/ask/spread/IV display, margin preview |
+| 4. Portfolio Screen | Done | Balance, margin, positions, close button, **history tab** |
+| 5. Risk Dashboard | Done | Net Greeks, stress test slider, margin utilization bar |
+| 6. Strategy Builder | Done | Add legs, payoff chart (CustomPaint), Greeks summary |
+| 7. Settings | Done | Reset account, volatility mode toggle |
+| Navigation | Done | Bottom nav bar (5 tabs) |
+
+Missing from spec: **24h % change** on asset selection (requires tracking
+open price or querying 24h ticker data).
+
+### Section 13: Local Storage -- 95%
+
+| Requirement | Status |
+|------------|--------|
+| Positions persistence | Done (Hive boxPositions) |
+| Trade history persistence | Done (Hive boxHistory) |
+| Account balance persistence | Done (Hive boxAccount) |
+| Settings persistence | Done (Hive boxSettings -- vol mode, expiry) |
+| Survives app restart | Done |
+| Daily expiry auto-reset on launch | Done (StorageService.init checks last_expiry) |
+
+### Section 14: Performance -- 60%
+
+| Requirement | Status |
+|------------|--------|
+| No full rebuild every tick | **Partial** -- debounced at 250ms but chain still regenerates |
+| Throttle recalculations | Done (250ms debounce on price stream) |
+| Isolates for heavy math | **Not done** |
+| Avoid jank | Likely OK for small chains (9 strikes) |
+| 60fps on mid-range Android | **Not profiled** |
+
+### Section 15: UI Requirements -- 100%
+
+| Requirement | Status |
+|------------|--------|
+| Dark theme | Done (Binance-style Color(0xFF0B0E11)) |
+| Professional trading style | Done |
+| Compact typography | Done |
+| Color-coded PnL (green/red) | Done |
+| Responsive layout | Done |
+
+### Section 16: Edge Cases -- 80%
+
+| Edge Case | Status |
+|-----------|--------|
+| App opened after expiry -> auto reset | Done (StorageService.init) |
+| Timezone -> always UTC | Done |
+| WebSocket disconnect -> auto reconnect | Done |
+| Extreme volatility -> widen spreads | **Not done** |
+| T -> 0 -> intrinsic only | Done |
+
+### Section 18: Code Quality -- 90%
+
+| Requirement | Status |
+|------------|--------|
+| Null-safe Dart | Done |
+| Strong typing | Done |
+| Clean architecture | Done |
+| Unit tests: Pricing engine | Done (11 tests) |
+| Unit tests: Risk/margin engine | Done (7 tests) |
+| Unit tests: Volatility engine | Done (8 tests) |
+| Unit tests: Spread engine | Done (8 tests) |
+| Unit tests: Time engine | Done (5 tests) |
+| Separation of concerns | Done (engines have no UI dependency) |
+| No business logic in UI | **Partial** -- liquidation trigger is in risk_dashboard.dart |
 
 ---
 
-## 📊 FEATURE COVERAGE BY REQUIREMENT
+## File Inventory
 
-| # | Feature | Status | % | Notes |
-|---|---------|--------|---|-------|
-| 1 | Flutter Mobile-Only | ✅ Done | 100% | iOS + Android configured |
-| 2 | No Backend | ✅ Done | 100% | Client-side only |
-| 3 | Dart Only | ✅ Done | 100% | No external languages |
-| 4 | Black-Scholes Engine | ✅ Done | 100% | Full Greeks + edge cases |
-| 5 | Options Generation | ✅ Done | 100% | Dynamic strikes implemented |
-| 6 | Time Engine (UTC Expiry) | ✅ Done | 100% | 23:59:59 UTC daily |
-| 7 | Time Stream Updates | ✅ Done | 100% | Per second |
-| 8 | Portfolio Tracking | ⚠️ Partial | 70% | Missing trade history |
-| 9 | Risk/Margin Calculation | ⚠️ Partial | 80% | Missing auto-liquidation |
-| 10 | WebSocket Data | ⚠️ Partial | 30% | Code exists, untested |
-| 11 | Auto Reconnect | ⚠️ Partial | 50% | Basic logic, no heartbeat |
-| 12 | 3 Assets (BTC/ETH/SOL) | ✅ Done | 100% | All supported |
-| 13 | Market Orders | ✅ Done | 100% | Instant fill |
-| 14 | Limit Orders | ✅ Done | 100% | With fill logic |
-| 15 | UI Screens (7) | ✅ Done | 100% | All 7 built |
-| 16 | Dark Theme | ✅ Done | 100% | Professional trading style |
-| 17 | Local Storage | ⚠️ Partial | 60% | Hive ready, not fully tested |
-| 18 | Bid/Ask Spreads | ❌ Missing | 0% | Only mid-price shown |
-| 19 | Slippage Model | ❌ Missing | 0% | No size impact |
-| 20 | Unit Tests | ⚠️ Partial | 10% | Only pricing tested |
-| 21 | Expiry Reset | ❌ Missing | 0% | No auto-cleanup |
-| 22 | Liquidation Auto-Close | ❌ Missing | 0% | Detection only |
+### Engines (5 files -- all pure Dart, stateless, tested)
+- `engines/pricing_engine.dart` -- Black-Scholes with all Greeks
+- `engines/time_engine.dart` -- UTC expiry, T calculation, countdown
+- `engines/volatility_engine.dart` -- IV skew, rolling realized vol
+- `engines/margin_engine.dart` -- Long/short margin, stress test
+- `engines/spread_engine.dart` -- Bid/ask, spread, slippage
 
----
+### Data Layer (2 files)
+- `data/market_data_service.dart` -- WebSocket + REST + heartbeat + debounce
+- `data/storage_service.dart` -- Hive init, daily expiry reset
 
-## 🚀 PRIORITY FIX LIST
+### State Management (3 files)
+- `features/market_state.dart` -- Providers for prices, time, options chain, limit fills
+- `features/portfolio_state.dart` -- Position, TradeRecord, PortfolioNotifier, BalanceNotifier
+- `features/risk_state.dart` -- MarginStatus, exit price calculation
 
-### Critical (Must Fix Before MVP)
-1. **Test WebSocket Integration** - Verify prices actually stream
-2. **Implement Bid/Ask Spreads** - Add 0.5% spread + min tick
-3. **Auto-Liquidation** - Force close positions when equity < margin
-4. **Fallback REST Polling** - If WebSocket fails, poll every 10s
-5. **Expiry Reset** - Auto-wipe positions when T ≤ 0
+### UI (9 files)
+- `ui/asset_selection_screen.dart`
+- `ui/trading_screen.dart`
+- `ui/trade_bottom_sheet.dart`
+- `ui/portfolio_screen.dart`
+- `ui/risk_dashboard.dart`
+- `ui/strategy_builder.dart`
+- `ui/settings_screen.dart`
+- `ui/navigation_wrapper.dart`
+- `ui/theme.dart`
 
-### Important (Should Have)
-1. **Heartbeat Monitoring** - WebSocket health checks
-2. **Trade History** - Persist all executed trades
-3. **Throttling/Debouncing** - Avoid recalc on every tick
-4. **Error Notifications** - UI feedback for failures
-5. **More Unit Tests** - Core engines should be 100% tested
-
-### Nice to Have (Future)
-1. **Slippage Simulation** - Size-based impact
-2. **Extreme Vol Handling** - Widen spreads under stress
-3. **Isolates for Math** - Offload heavy calculations
-4. **Settings Persistence** - Remember user preferences
-5. **Analytics** - Track trades, win rate, etc.
+### Tests (5 files, 42 tests total)
+- `test/pricing_engine_test.dart` (11)
+- `test/volatility_engine_test.dart` (8)
+- `test/margin_engine_test.dart` (7)
+- `test/spread_engine_test.dart` (8)
+- `test/time_engine_test.dart` (5)
 
 ---
 
-## 📈 OVERALL COMPLETION ESTIMATE
+## What's Left to Reach 100%
 
-**Core Engines: 95%**
-- Pricing ✅ | Time ✅ | Volatility ✅ | Risk ✅ | Margin ✅
+### High Priority
 
-**State Management: 85%**
-- Market ⚠️ | Portfolio ✅ | Risk ✅ | Orders ✅ | History ❌
+1. **In-session expiry handling (Section 5)**
+   When T hits 0 while the app is open, auto-close all positions at
+   intrinsic value and reset for the next day. Currently only handles
+   this on app relaunch.
 
-**UI/UX: 90%**
-- Screens ✅ | Navigation ✅ | Theme ✅ | Responsive ✅ | Interactions ⚠️
+2. **Extreme volatility spread widening (Section 16)**
+   SpreadEngine should widen spreads when realized vol is unusually high.
+   Simple rule: if rolling vol > 2x base, multiply spread by 1.5-2x.
 
-**Data Layer: 60%**
-- Storage ⚠️ | WebSocket ⚠️ | REST Polling ❌
+3. **24h % change on asset selection (Section 12)**
+   Spec says each asset card should show "24h %". Requires either
+   storing the opening price or fetching the 24h ticker from REST.
 
-**Testing: 10%**
-- Unit Tests ⚠️ | Integration Tests ❌ | E2E Tests ❌
+4. **Move liquidation logic out of UI (Section 18)**
+   The auto-liquidation trigger is inside `risk_dashboard.dart` using
+   `addPostFrameCallback`. Should be a `ref.listen` in a proper
+   provider or in `main.dart` for clean separation.
+
+### Medium Priority
+
+5. **Isolates for heavy math (Section 14)**
+   Option chain generation runs 9 strikes x 2 types = 18 BS calculations
+   on the main thread. For current chain size this is fine, but spec
+   calls for isolate readiness. Could wrap in `compute()`.
+
+6. **Profiling on real device (Section 14)**
+   Need to verify 60fps on mid-range Android with DevTools.
+
+7. **Max loss/profit display in Strategy Builder (Section 12)**
+   The payoff chart is drawn but the numeric max loss/max profit values
+   are not displayed explicitly.
+
+### Low Priority
+
+8. **`core/` and `domain/` directories (Section 3)**
+   Spec shows these in the architecture diagram. Not functionally
+   needed but would match the spec structure.
 
 ---
 
-## 🎯 OVERALL: ~65-70% Complete
+## Commit History
 
----
-
-## 🎯 RECOMMENDED NEXT STEPS
-
-1. **Immediate (Day 1)**
-   - Test WebSocket with real Binance connection
-   - Implement bid/ask spread formula
-   - Add fallback REST polling
-
-2. **Short-term (Days 2-3)**
-   - Implement auto-liquidation
-   - Add trade history tracking
-   - Write unit tests for all engines
-
-3. **Medium-term (Week 2)**
-   - Performance profiling + optimization
-   - Add error boundary UI components
-   - Beta test on real Android devices
-
-4. **Before Release**
-   - Full regression testing
-   - Load testing (many positions)
-   - Edge case verification
+| Hash | Description |
+|------|------------|
+| `3a82ab0` | Initial commit: Flutter project, engines, state, UI |
+| `c411f63` | feat: Limit orders, risk state, strategy builder, settings |
+| `9b8a964` | docs: Project status report |
+| `6662ce4` | feat: Price history, payoff chart, slippage, expiry reset |
+| `0a095f9` | feat: Major overhaul -- WebSocket, spreads, liquidation, tests |
+| `3068d59` | fix: ProviderRef type error and missing import |
