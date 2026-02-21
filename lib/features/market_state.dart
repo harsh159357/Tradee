@@ -107,7 +107,7 @@ final optionsChainProvider = Provider<List<OptionContract>>((ref) {
   return chain;
 });
 
-void _checkLimitOrderFills(ProviderRef ref, double spot, double t, double baseVol) {
+void _checkLimitOrderFills(Ref ref, double spot, double t, double baseVol) {
   final portfolio = ref.read(portfolioProvider);
   for (final pos in portfolio) {
     if (!pos.isFilled && pos.orderType == 'limit') {
