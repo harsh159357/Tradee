@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'asset_selection_screen.dart';
 import 'portfolio_screen.dart';
 import 'risk_dashboard.dart';
+import 'strategy_builder.dart';
+import 'settings_screen.dart';
 
 class MainNavigationWrapper extends StatefulWidget {
   const MainNavigationWrapper({super.key});
@@ -17,7 +18,9 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   static const List<Widget> _screens = [
     AssetSelectionScreen(),
     PortfolioScreen(),
+    StrategyBuilderScreen(),
     RiskDashboard(),
+    SettingsScreen(),
   ];
 
   @override
@@ -34,7 +37,9 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Markets'),
           BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Portfolio'),
+          BottomNavigationBarItem(icon: Icon(Icons.architecture), label: 'Builder'),
           BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Risk'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),
     );

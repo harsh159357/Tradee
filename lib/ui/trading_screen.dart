@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../features/market_state.dart';
 import '../engines/pricing_engine.dart';
+import 'trade_bottom_sheet.dart';
 
 class TradingScreen extends HookConsumerWidget {
   const TradingScreen({super.key});
@@ -40,7 +41,7 @@ class TradingScreen extends HookConsumerWidget {
               itemBuilder: (context, index) {
                 final call = chain[index * 2];
                 final put = chain[index * 2 + 1];
-                return _buildOptionRow(context, call, put);
+                return _buildOptionRow(context, call, put, symbol, spot);
               },
             ),
           ),
@@ -64,7 +65,7 @@ class TradingScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildOptionRow(BuildContext context, OptionContract call, OptionContract put) {
+  Widget _buildOptionRow(BuildContext context, OptionContract call, OptionContract put, String symbol, double spot) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: const BoxDecoration(
@@ -72,7 +73,7 @@ class TradingScreen extends HookConsumerWidget {
       ),
       child: Row(
         children: [
-          _buildPriceCell(context, call, true),
+          _buildPriceCell(context, call, true, symbol, spot),
           Expanded(
             child: Text(
               call.strike.toStringAsFixed(0),
@@ -80,18 +81,16 @@ class TradingScreen extends HookConsumerWidget {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
-          _buildPriceCell(context, put, false),
+          _buildPriceCell(context, put, false, symbol, spot),
         ],
       ),
     );
   }
 
-  Widget _buildPriceCell(BuildContext context, OptionContract contract, bool isCall) {
+  Widget _buildPriceCell(BuildContext context, OptionContract contract, bool isCall, String symbol, double spot) {
     return Expanded(
       child: InkWell(
-        onTap: () {
-          // Bottom sheet to trade
-        },
+        onTap: () => showTradeBottomSheet(context, contract, symbol, spot),
         child: Column(
           children: [
             Text(

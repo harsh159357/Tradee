@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:tradee/features/portfolio_state.dart';
 import '../data/market_data_service.dart';
 import '../engines/pricing_engine.dart';
 import '../engines/time_engine.dart';
@@ -54,7 +55,34 @@ final optionsChainProvider = Provider<List<OptionContract>>((ref) {
   if (prices == null || prices[symbol] == null || prices[symbol] == 0.0) return [];
 
   final spot = prices[symbol]!;
+  
+  // Update: Check for Limit Order Fills
+  final portfolio = ref.read(portfolioProvider);
+  for (final pos in portfolio) {
+    if (!pos.isFilled && pos.orderType == 'limit') {
+      // Basic fill logic: if market premium cross limit price
+      final currentIV = VolatilityEngine().calculateIV(S: spot, K: pos.strike, T: t);
+      final currentRes = BlackScholesEngine.calculate(
+        S: spot,
+        K: pos.strike,
+        T: t,
+        r: 0.05,
+        v: currentIV,
+        type: pos.type == 'call' ? OptionType.call : OptionType.put,
+      );
+
+      // If market premium <= limit price (for buys) or >= limit price (for sells)
+      // Since we simplify, let's say if market premium hits the limit price, it fills.
+      if (pos.quantity > 0 && currentRes.premium <= pos.entryPrice) {
+         ref.read(portfolioProvider.notifier).updatePosition(pos.copyWith(isFilled: true));
+      } else if (pos.quantity < 0 && currentRes.premium >= pos.entryPrice) {
+         ref.read(portfolioProvider.notifier).updatePosition(pos.copyWith(isFilled: true));
+      }
+    }
+  }
+
   final volEngine = VolatilityEngine();
+  // ... rest of the option chain generation logic
   
   // Generate strikes: S ±1%, ±2%, ±3%, ±5%
   final strikeOffsets = [0.95, 0.97, 0.98, 0.99, 1.0, 1.01, 1.02, 1.03, 1.05];

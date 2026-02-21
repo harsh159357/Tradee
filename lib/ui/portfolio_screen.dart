@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../features/portfolio_state.dart';
 import '../features/market_state.dart';
 import '../engines/pricing_engine.dart';
+import '../features/risk_state.dart';
 
 class PortfolioScreen extends HookConsumerWidget {
   const PortfolioScreen({super.key});
@@ -10,7 +12,7 @@ class PortfolioScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final positions = ref.watch(portfolioProvider);
-    final balance = ref.watch(balanceProvider);
+    final marginStatus = ref.watch(marginStatusProvider);
     final prices = ref.watch(pricesProvider).value ?? {};
     final t = ref.watch(tValueProvider).value ?? 0.0;
 
@@ -18,7 +20,7 @@ class PortfolioScreen extends HookConsumerWidget {
       appBar: AppBar(title: const Text('Portfolio'), backgroundColor: Colors.transparent),
       body: Column(
         children: [
-          _buildStatsHeader(balance),
+          _buildStatsHeader(marginStatus.equity, marginStatus.maintenanceMargin),
           const Divider(color: Colors.white10),
           Expanded(
             child: positions.isEmpty 
@@ -27,7 +29,7 @@ class PortfolioScreen extends HookConsumerWidget {
                   itemCount: positions.length,
                   itemBuilder: (context, index) {
                     final pos = positions[index];
-                    return _buildPositionCard(context, ref, pos, prices, t, index);
+                    return _buildPositionCard(context, ref, pos, prices, t);
                   },
                 ),
           ),
@@ -36,19 +38,30 @@ class PortfolioScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildStatsHeader(double balance) {
+  Widget _buildStatsHeader(double equity, double margin) {
     return Container(
       padding: const EdgeInsets.all(20),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          const Text('Total Equity', style: TextStyle(color: Colors.white54, fontSize: 14)),
-          Text('\$${balance.toStringAsFixed(2)}', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFFF0B90B))),
+          Column(
+            children: [
+              const Text('Equity', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              Text('\$${equity.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFF0B90B))),
+            ],
+          ),
+          Column(
+            children: [
+              const Text('Margin Used', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              Text('\$${margin.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPositionCard(BuildContext context, WidgetRef ref, Position pos, Map<String, double> prices, double t, int index) {
+  Widget _buildPositionCard(BuildContext context, WidgetRef ref, Position pos, Map<String, double> prices, double t) {
     final spot = prices[pos.symbol] ?? 0.0;
     
     // Calculate current premium for PnL
@@ -57,7 +70,7 @@ class PortfolioScreen extends HookConsumerWidget {
       K: pos.strike,
       T: t,
       r: 0.05,
-      v: 0.50, // Simplified for UI
+      v: 0.50, 
       type: pos.type == 'call' ? OptionType.call : OptionType.put,
     );
 
@@ -76,9 +89,20 @@ class PortfolioScreen extends HookConsumerWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${pos.symbol} ${pos.strike.toStringAsFixed(0)} ${pos.type.toUpperCase()}', 
-                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text('${pos.quantity > 0 ? "LONG" : "SHORT"} ${pos.quantity.abs()} Contracts', 
+                    Row(
+                      children: [
+                        Text('${pos.symbol} ${pos.strike.toStringAsFixed(0)} ${pos.type.toUpperCase()}', 
+                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        if (!pos.isFilled)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(4)),
+                            child: const Text('LIMIT', style: TextStyle(fontSize: 10, color: Colors.black)),
+                          ),
+                      ],
+                    ),
+                    Text('${pos.quantity > 0 ? "LONG" : "SHORT"} ${pos.quantity.abs()} Contracts @ \$${pos.entryPrice.toStringAsFixed(2)}', 
                          style: const TextStyle(color: Colors.white54, fontSize: 12)),
                   ],
                 ),
@@ -86,19 +110,23 @@ class PortfolioScreen extends HookConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '${isProfit ? "+" : ""}\$${pnl.toStringAsFixed(2)}',
-                      style: TextStyle(color: isProfit ? Colors.greenAccent : Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 18),
+                      pos.isFilled ? '${isProfit ? "+" : ""}\$${pnl.toStringAsFixed(2)}' : 'PENDING',
+                      style: TextStyle(
+                        color: pos.isFilled ? (isProfit ? Colors.greenAccent : Colors.redAccent) : Colors.orange, 
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 18
+                      ),
                     ),
-                    const Text('Unrealized PnL', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                    if (pos.isFilled) const Text('Unrealized PnL', style: TextStyle(color: Colors.white54, fontSize: 10)),
                   ],
                 )
               ],
             ),
             const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: () => ref.read(portfolioProvider.notifier).closePosition(index),
+              onPressed: () => ref.read(portfolioProvider.notifier).closePosition(pos.id),
               style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 40)),
-              child: const Text('CLOSE POSITION'),
+              child: Text(pos.isFilled ? 'CLOSE POSITION' : 'CANCEL ORDER'),
             )
           ],
         ),

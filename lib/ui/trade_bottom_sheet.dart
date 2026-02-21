@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../features/market_state.dart';
 import '../features/portfolio_state.dart';
@@ -23,9 +24,10 @@ class TradeBottomSheet extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final qtyController = TextEditingController(text: '1.0');
-    final balance = ref.watch(balanceProvider);
-
+    final qtyController = useTextEditingController(text: '1.0');
+    final priceController = useTextEditingController(text: contract.greeks.premium.toStringAsFixed(2));
+    final orderType = useState<String>('market');
+    
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
@@ -48,6 +50,28 @@ class TradeBottomSheet extends HookConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
+          // Order Type Selection
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'market', label: Text('Market')),
+              ButtonSegment(value: 'limit', label: Text('Limit')),
+            ],
+            selected: {orderType.value},
+            onSelectionChanged: (val) => orderType.value = val.first,
+          ),
+          const SizedBox(height: 16),
+          if (orderType.value == 'limit') ...[
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Limit Price',
+                border: OutlineInputBorder(),
+                prefixText: '\$',
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           TextField(
             controller: qtyController,
             keyboardType: TextInputType.number,
@@ -59,7 +83,7 @@ class TradeBottomSheet extends HookConsumerWidget {
           ),
           const SizedBox(height: 16),
           _buildInfoRow('Premium', '\$${contract.greeks.premium.toStringAsFixed(2)}'),
-          _buildInfoRow('Estimated Margin', '\$${(contract.greeks.premium * 1.0).toStringAsFixed(2)}'), // Simple preview
+          _buildInfoRow('Estimated Margin', '\$${(contract.greeks.premium * double.parse(qtyController.text.isEmpty ? "0" : qtyController.text)).toStringAsFixed(2)}'),
           const SizedBox(height: 24),
           Row(
             children: [
@@ -70,7 +94,7 @@ class TradeBottomSheet extends HookConsumerWidget {
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.all(16),
                   ),
-                  onPressed: () => _placeOrder(ref, context, 1.0),
+                  onPressed: () => _placeOrder(ref, context, 1.0, orderType.value, double.parse(priceController.text), double.parse(qtyController.text)),
                   child: const Text('BUY / LONG', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
@@ -82,7 +106,7 @@ class TradeBottomSheet extends HookConsumerWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.all(16),
                   ),
-                  onPressed: () => _placeOrder(ref, context, -1.0),
+                  onPressed: () => _placeOrder(ref, context, -1.0, orderType.value, double.parse(priceController.text), double.parse(qtyController.text)),
                   child: const Text('SELL / SHORT', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
@@ -107,20 +131,28 @@ class TradeBottomSheet extends HookConsumerWidget {
     );
   }
 
-  void _placeOrder(WidgetRef ref, BuildContext context, double qtyFactor) {
-    // In a real execution, we'd read the actual qty from controller
+  void _placeOrder(WidgetRef ref, BuildContext context, double qtyFactor, String oType, double limitPrice, double qty) {
+    final entryPrice = oType == 'market' ? contract.greeks.premium : limitPrice;
+    
     final pos = Position(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
       symbol: symbol,
       strike: contract.strike,
       type: contract.type.name,
-      quantity: 1.0 * qtyFactor, 
-      entryPrice: contract.greeks.premium,
+      quantity: qty * qtyFactor, 
+      entryPrice: entryPrice,
+      orderType: oType,
+      isFilled: oType == 'market',
+      timestamp: DateTime.now(),
     );
     
-    ref.read(portfolioProvider.notifier).addPosition(pos);
+    ref.read(portfolioProvider.notifier).addOrder(pos);
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Order Executed Successfully'), backgroundColor: Colors.green),
+      SnackBar(
+        content: Text(oType == 'market' ? 'Order Executed Successfully' : 'Limit Order Placed'), 
+        backgroundColor: Colors.green
+      ),
     );
   }
 }
