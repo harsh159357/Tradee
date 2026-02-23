@@ -110,8 +110,12 @@ class PortfolioNotifier extends StateNotifier<List<Position>> {
     await addOrder(pos);
 
     if (orderType == 'market') {
-      final cost = entryPrice * quantity * qtyFactor;
-      await balanceNotifier.updateBalance(currentBalance - cost);
+      if (qtyFactor > 0) {
+        final cost = entryPrice * quantity;
+        await balanceNotifier.updateBalance(currentBalance - cost);
+      }
+      // Short market orders: premium is held as collateral, no balance credit.
+      // Settlement happens entirely at close.
     } else {
       final marginHold = entryPrice * quantity;
       await balanceNotifier.updateBalance(currentBalance - marginHold);
@@ -139,7 +143,18 @@ class PortfolioNotifier extends StateNotifier<List<Position>> {
     await closePosition(id, exitPrice: exitPrice);
 
     if (isFilled) {
-      await balanceNotifier.updateBalance(currentBalance + pnl);
+      if (quantity > 0) {
+        // Long: paid premium at open, receive exit value at close.
+        // Net effect = exitPrice * qty (recover whatever the option is worth).
+        await balanceNotifier.updateBalance(
+            currentBalance + exitPrice * quantity);
+      } else {
+        // Short: no balance change at open (premium held as collateral).
+        // At close: settle as (entryPrice - exitPrice) * |qty|.
+        // Positive when option price dropped (profit), negative when it rose (loss).
+        final settlement = (entryPrice - exitPrice) * quantity.abs();
+        await balanceNotifier.updateBalance(currentBalance + settlement);
+      }
     } else {
       final refund = entryPrice * quantity.abs();
       await balanceNotifier.updateBalance(currentBalance + refund);
@@ -148,9 +163,13 @@ class PortfolioNotifier extends StateNotifier<List<Position>> {
     historyNotifier.refresh();
   }
 
-  Future<void> closeAllPositions(Map<String, double> exitPrices) async {
+  Future<void> closeAllPositions(
+    Map<String, double> exitPrices,
+    BalanceNotifier balanceNotifier,
+  ) async {
     final box = StorageService.getBox(StorageService.boxPositions);
     final historyBox = StorageService.getBox(StorageService.boxHistory);
+    double balanceDelta = 0;
 
     for (final key in box.keys.toList()) {
       final posMap = box.get(key);
@@ -172,11 +191,20 @@ class PortfolioNotifier extends StateNotifier<List<Position>> {
             closedAt: DateTime.now(),
           );
           await historyBox.put(record.id, record.toMap());
+
+          if (pos.quantity > 0) {
+            balanceDelta += ep * pos.quantity;
+          } else {
+            balanceDelta += (pos.entryPrice - ep) * pos.quantity.abs();
+          }
         }
       }
     }
     await box.clear();
     loadPositions();
+
+    final currentBalance = balanceNotifier.state;
+    await balanceNotifier.updateBalance(currentBalance + balanceDelta);
   }
 }
 

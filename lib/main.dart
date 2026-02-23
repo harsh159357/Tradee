@@ -71,7 +71,10 @@ class _TradeeAppState extends ConsumerState<TradeeApp> {
     final rollingVols = ref.read(rollingVolatilityProvider);
 
     final exitPrices = calculateExitPrices(positions, prices, t, rollingVols);
-    ref.read(portfolioProvider.notifier).closeAllPositions(exitPrices);
+    ref.read(portfolioProvider.notifier).closeAllPositions(
+      exitPrices,
+      ref.read(balanceProvider.notifier),
+    );
     ref.read(tradeHistoryProvider.notifier).refresh();
 
     _showSnackBar('LIQUIDATION: All positions force-closed at market',
@@ -87,7 +90,10 @@ class _TradeeAppState extends ConsumerState<TradeeApp> {
 
     // At expiry T=0, BS returns intrinsic value
     final exitPrices = calculateExitPrices(positions, prices, 0.0, rollingVols);
-    ref.read(portfolioProvider.notifier).closeAllPositions(exitPrices);
+    ref.read(portfolioProvider.notifier).closeAllPositions(
+      exitPrices,
+      ref.read(balanceProvider.notifier),
+    );
     ref.read(tradeHistoryProvider.notifier).refresh();
 
     _showSnackBar('EXPIRY: All positions settled at intrinsic value',
