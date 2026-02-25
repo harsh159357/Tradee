@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../core/constants.dart';
 import '../features/market_state.dart';
+import 'theme.dart';
 import 'trade_bottom_sheet.dart';
 
 class TradingScreen extends HookConsumerWidget {
@@ -18,49 +19,103 @@ class TradingScreen extends HookConsumerWidget {
     final chainAsync = ref.watch(optionsChainProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        child: Column(
           children: [
-            Text(symbol,
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
-            Text('\$${spot.toStringAsFixed(2)}',
-                style: const TextStyle(
-                    fontSize: 14, color: Colors.greenAccent)),
+            _buildHeader(context, symbol, spot, countdown, te.expiryIST, pricesAsync),
+            _buildChainHeader(context),
+            Expanded(child: _buildChainBody(context, ref, chainAsync, symbol, spot)),
           ],
         ),
-        actions: [
-          if (pricesAsync is AsyncLoading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 16, height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(countdown,
-                    style: const TextStyle(
-                        fontFamily: 'Courier', fontWeight: FontWeight.bold, fontSize: 14)),
-                Text('Exp ${te.expiryIST}',
-                    style: const TextStyle(
-                        fontFamily: 'Courier', fontSize: 9, color: Colors.white38)),
-              ],
-            ),
-          )
-        ],
-        backgroundColor: Colors.transparent,
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, String symbol, double spot,
+      String countdown, String expiryIST, AsyncValue pricesAsync) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 8, 16, 16),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.surfaceBorder)),
+      ),
+      child: Column(
         children: [
-          _buildChainHeader(context),
-          Expanded(child: _buildChainBody(context, ref, chainAsync, symbol, spot)),
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      symbol,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          spot > 0 ? '\$${spot.toStringAsFixed(2)}' : 'Loading...',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.profit,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        if (pricesAsync is AsyncLoading) ...[
+                          const SizedBox(width: 8),
+                          const SizedBox(
+                            width: 12, height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.surfaceBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      countdown,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: AppColors.textPrimary,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    Text(
+                      'Exp $expiryIST',
+                      style: const TextStyle(fontSize: 10, color: AppColors.textTertiary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -70,46 +125,74 @@ class TradingScreen extends HookConsumerWidget {
       AsyncValue<List<OptionContract>> chainAsync, String symbol, double spot) {
     final chain = chainAsync.value ?? [];
 
-    // First load -- no data yet
     if (chain.isEmpty && chainAsync.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
 
-    // Error with no previous data
     if (chain.isEmpty && chainAsync.hasError) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-            const SizedBox(height: 12),
-            Text('Failed to load chain: ${chainAsync.error}',
-                style: const TextStyle(color: Colors.white54)),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () => ref.invalidate(optionsChainProvider),
-              child: const Text('Retry'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.lossDim,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(Icons.error_outline, size: 32, color: AppColors.loss),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Failed to load chain: ${chainAsync.error}',
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => ref.invalidate(optionsChainProvider),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.surfaceLight,
+                  foregroundColor: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    // Show chain (keeps old data visible during refresh)
     return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 16),
       itemCount: chain.length ~/ 2,
       itemBuilder: (context, index) {
         final call = chain[index * 2];
         final put = chain[index * 2 + 1];
-        return _buildOptionRow(context, call, put, symbol, spot);
+        return _OptionRow(
+          call: call,
+          put: put,
+          symbol: symbol,
+          spot: spot,
+          isEven: index.isEven,
+        );
       },
     );
   }
 
   Widget _buildChainHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      color: Theme.of(context).colorScheme.surface,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: const BoxDecoration(
+        color: AppColors.surfaceLight,
+        border: Border(bottom: BorderSide(color: AppColors.surfaceBorder)),
+      ),
       child: const Row(
         children: [
           Expanded(
@@ -117,9 +200,9 @@ class TradingScreen extends HookConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Text('Bid', style: TextStyle(color: Colors.white38, fontSize: 10)),
-                Text('CALLS', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 12)),
-                Text('Ask', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                Text('Bid', style: TextStyle(color: AppColors.textTertiary, fontSize: 10, fontWeight: FontWeight.w600)),
+                Text('CALLS', style: TextStyle(color: AppColors.profit, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.5)),
+                Text('Ask', style: TextStyle(color: AppColors.textTertiary, fontSize: 10, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -127,16 +210,16 @@ class TradingScreen extends HookConsumerWidget {
             flex: 2,
             child: Text('STRIKE',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, fontSize: 12)),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
           ),
           Expanded(
             flex: 3,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Text('Bid', style: TextStyle(color: Colors.white38, fontSize: 10)),
-                Text('PUTS', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
-                Text('Ask', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                Text('Bid', style: TextStyle(color: AppColors.textTertiary, fontSize: 10, fontWeight: FontWeight.w600)),
+                Text('PUTS', style: TextStyle(color: AppColors.loss, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.5)),
+                Text('Ask', style: TextStyle(color: AppColors.textTertiary, fontSize: 10, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -144,21 +227,43 @@ class TradingScreen extends HookConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _buildOptionRow(BuildContext context, OptionContract call,
-      OptionContract put, String symbol, double spot) {
+class _OptionRow extends StatelessWidget {
+  final OptionContract call;
+  final OptionContract put;
+  final String symbol;
+  final double spot;
+  final bool isEven;
+
+  const _OptionRow({
+    required this.call,
+    required this.put,
+    required this.symbol,
+    required this.spot,
+    required this.isEven,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final isATM = (call.strike - spot).abs() / spot < AppConstants.atmThreshold;
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: isATM ? const Color(0xFF2A2E35) : Colors.transparent,
-        border: const Border(
-            bottom: BorderSide(color: Colors.white10, width: 0.5)),
+        color: isATM
+            ? AppColors.primaryDim
+            : isEven
+                ? Colors.transparent
+                : AppColors.surface.withAlpha(80),
+        border: isATM
+            ? const Border.symmetric(
+                horizontal: BorderSide(color: AppColors.primary, width: 0.5))
+            : const Border(bottom: BorderSide(color: AppColors.surfaceBorder, width: 0.3)),
       ),
       child: Row(
         children: [
-          _buildPriceCell(context, call, true, symbol, spot),
+          _PriceCell(contract: call, isCall: true, symbol: symbol, spot: spot),
           Expanded(
             flex: 2,
             child: Column(
@@ -167,75 +272,109 @@ class TradingScreen extends HookConsumerWidget {
                   call.strike.toStringAsFixed(0),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     fontSize: 14,
-                    color: isATM
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.white,
+                    color: isATM ? AppColors.primary : AppColors.textPrimary,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
                 if (isATM)
-                  Text('ATM',
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryDim,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'ATM',
                       style: TextStyle(
-                          fontSize: 8, color: Theme.of(context).colorScheme.primary)),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          _buildPriceCell(context, put, false, symbol, spot),
+          _PriceCell(contract: put, isCall: false, symbol: symbol, spot: spot),
         ],
       ),
     );
   }
+}
 
-  Widget _buildPriceCell(BuildContext context, OptionContract contract,
-      bool isCall, String symbol, double spot) {
+class _PriceCell extends StatelessWidget {
+  final OptionContract contract;
+  final bool isCall;
+  final String symbol;
+  final double spot;
+
+  const _PriceCell({
+    required this.contract,
+    required this.isCall,
+    required this.symbol,
+    required this.spot,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = isCall ? AppColors.profit : AppColors.loss;
+
     return Expanded(
       flex: 3,
-      child: InkWell(
-        onTap: () => showTradeBottomSheet(context, contract, symbol, spot),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            Text(
-              contract.spread.bid.toStringAsFixed(2),
-              style: TextStyle(
-                fontSize: 12,
-                color: isCall
-                    ? Colors.greenAccent.withAlpha(180)
-                    : Colors.redAccent.withAlpha(180),
-              ),
-            ),
-            Column(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => showTradeBottomSheet(context, contract, symbol, spot),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 Text(
-                  '\$${contract.greeks.premium.toStringAsFixed(2)}',
+                  contract.spread.bid.toStringAsFixed(2),
                   style: TextStyle(
-                    color: isCall ? Colors.greenAccent : Colors.redAccent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    fontSize: 12,
+                    color: accent.withAlpha(160),
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
+                Column(
+                  children: [
+                    Text(
+                      '\$${contract.greeks.premium.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    Text(
+                      'Δ ${contract.greeks.delta.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textTertiary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
                 Text(
-                  'Δ${contract.greeks.delta.toStringAsFixed(2)}',
+                  contract.spread.ask.toStringAsFixed(2),
                   style: TextStyle(
-                    fontSize: 9,
-                    color: contract.greeks.delta >= 0
-                        ? Colors.greenAccent.withAlpha(150)
-                        : Colors.redAccent.withAlpha(150),
+                    fontSize: 12,
+                    color: accent.withAlpha(160),
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ],
             ),
-            Text(
-              contract.spread.ask.toStringAsFixed(2),
-              style: TextStyle(
-                fontSize: 12,
-                color: isCall
-                    ? Colors.greenAccent.withAlpha(180)
-                    : Colors.redAccent.withAlpha(180),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

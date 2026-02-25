@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 
 class StatColumn extends StatelessWidget {
   final String label;
@@ -6,28 +7,43 @@ class StatColumn extends StatelessWidget {
   final Color valueColor;
   final double labelSize;
   final double valueSize;
+  final IconData? icon;
 
   const StatColumn({
     super.key,
     required this.label,
     required this.value,
-    this.valueColor = Colors.white,
-    this.labelSize = 10,
-    this.valueSize = 14,
+    this.valueColor = AppColors.textPrimary,
+    this.labelSize = 11,
+    this.valueSize = 15,
+    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label,
-            style: TextStyle(color: Colors.white54, fontSize: labelSize)),
+        if (icon != null) ...[
+          Icon(icon, size: 16, color: AppColors.textTertiary),
+          const SizedBox(height: 4),
+        ],
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.textTertiary,
+            fontSize: labelSize,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value,
-            style: TextStyle(
-                fontSize: valueSize,
-                fontWeight: FontWeight.bold,
-                color: valueColor)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: valueSize,
+            fontWeight: FontWeight.w700,
+            color: valueColor,
+          ),
+        ),
       ],
     );
   }
