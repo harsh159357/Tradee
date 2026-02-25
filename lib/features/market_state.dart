@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:isolate';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../core/constants.dart';
@@ -125,7 +125,10 @@ final optionsChainProvider = FutureProvider<List<OptionContract>>((ref) async {
   _activeChainKey = chainKey;
 
   try {
-    final chain = await Isolate.run(() => _computeChain(spot, symbol, t, baseVol));
+    final chain = await compute(
+      _computeChain,
+      (spot: spot, symbol: symbol, t: t, baseVol: baseVol),
+    );
     completer.complete(chain);
     return chain;
   } catch (e) {
@@ -135,11 +138,9 @@ final optionsChainProvider = FutureProvider<List<OptionContract>>((ref) async {
 });
 
 List<OptionContract> _computeChain(
-  double spot,
-  String symbol,
-  double t,
-  double baseVol,
+  ({double spot, String symbol, double t, double baseVol}) params,
 ) {
+  final (:spot, :symbol, :t, :baseVol) = params;
   final volEngine = VolatilityEngine(baseVolatility: baseVol);
   final List<OptionContract> chain = [];
 
